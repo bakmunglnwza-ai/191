@@ -1,8 +1,7 @@
 --[[
-    Script Name: 191 (AudioPlayer Scanner - Workspace + All)
+    Script Name: 191 (AudioPlayer Scanner - Check Every Player)
     Theme: Black & Red
-    Format: PlayerName - DeviceName - AudioPlayer
-    Features: Full game scan, debug prints, easy copy
+    Features: Scans Workspace + all Players, identifies owner from device name, debug prints
 ]]
 
 local Players = game:GetService("Players")
@@ -13,8 +12,6 @@ local Workspace = game:GetService("Workspace")
 local SoundService = game:GetService("SoundService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Lighting = game:GetService("Lighting")
-local ServerStorage = game:GetService("ServerStorage")
-local StarterGui = game:GetService("StarterGui")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -56,7 +53,7 @@ local function SmartCopy(text)
     return false
 end
 
--- ดึง Asset ID จาก SoundId
+-- ดึง Asset ID จาก SoundId (รองรับ rbxsestid)
 local function ExtractAssetId(soundId)
     local patterns = {
         "rbxassetid://(%d+)",
@@ -71,7 +68,7 @@ local function ExtractAssetId(soundId)
     return soundId:match("(%d+)$")
 end
 
--- หาชื่ออุปกรณ์
+-- หาชื่ออุปกรณ์ (Parent ที่เป็น Model หรือ GUI)
 local function GetDeviceName(audioPlayer)
     local parent = audioPlayer.Parent
     if not parent then return "Unknown Device" end
@@ -87,7 +84,7 @@ local function GetDeviceName(audioPlayer)
     return parent.Name
 end
 
--- หาเจ้าของจาก Character โดยตรง
+-- หาเจ้าของจาก Character (ถ้าอยู่ใน Character โดยตรง)
 local function GetOwnerFromCharacter(audioPlayer)
     local current = audioPlayer
     while current and current.Parent do
@@ -101,8 +98,7 @@ local function GetOwnerFromCharacter(audioPlayer)
 end
 
 -- หาเจ้าของจากชื่อ Parent (เช่น "RELICSxyz Boombox")
-local function GetOwnerFromParentName(audioPlayer)
-    local deviceName = GetDeviceName(audioPlayer)
+local function GetOwnerFromParentName(deviceName)
     for _, player in ipairs(Players:GetPlayers()) do
         local playerName = player.Name
         if deviceName:sub(1, #playerName) == playerName or deviceName:find(playerName, 1, true) then
@@ -112,12 +108,18 @@ local function GetOwnerFromParentName(audioPlayer)
     return nil
 end
 
--- ฟังก์ชันหลักระบุเจ้าของ
+-- ระบุเจ้าของแบบละเอียด
 local function DetermineOwner(audioPlayer)
+    -- 1. จาก Character
     local charOwner = GetOwnerFromCharacter(audioPlayer)
     if charOwner then return charOwner end
-    local nameOwner = GetOwnerFromParentName(audioPlayer)
+    
+    -- 2. จากชื่ออุปกรณ์
+    local deviceName = GetDeviceName(audioPlayer)
+    local nameOwner = GetOwnerFromParentName(deviceName)
     if nameOwner then return nameOwner end
+    
+    -- 3. ถ้าไม่พบ ให้คืน "Server/Ambient"
     return "Server/Ambient"
 end
 
@@ -323,7 +325,7 @@ local function CreateMusicCard(audioPlayer, assetInfo, ownerName, deviceName)
     CreatorName.TextXAlignment = Enum.TextXAlignment.Left
     CreatorName.Parent = card
 
-    -- Owner & Device
+    -- Owner & Device (รูปแบบที่ต้องการ)
     local SourceLabel = Instance.new("TextLabel")
     SourceLabel.Text = ownerName .. " - " .. deviceName .. " - AudioPlayer"
     SourceLabel.Size = UDim2.new(1, -200, 0, 16)
@@ -443,29 +445,67 @@ local function CreateMusicCard(audioPlayer, assetInfo, ownerName, deviceName)
     end)
 end
 
--- ฟังก์ชันสแกนแบบใหม่ (กวาดทั้งเกม)
-local function DeepScan()
+-- =============================================
+-- ฟังก์ชันสแกนใหม่: ตรวจสอบผู้เล่นทุกคน + Workspace
+-- =============================================
+local function ScanEverything()
     local found = {}
     local seen = {}
-    local allDescendants = game:GetDescendants()
-    print("[191] กำลังสแกน " .. #allDescendants .. " ออบเจ็กต์...")
     
-    for _, obj in ipairs(allDescendants) do
-        if obj:IsA("AudioPlayer") and obj.SoundId ~= "" then
-            if seen[obj] then continue end
-            seen[obj] = true
-            local cleanID = ExtractAssetId(obj.SoundId)
-            if cleanID then
-                local deviceName = GetDeviceName(obj)
-                local ownerName = DetermineOwner(obj)
-                table.insert(found, {ownerName = ownerName, audio = obj, device = deviceName, id = cleanID})
-                print("[191] พบ: " .. ownerName .. " - " .. deviceName .. " | ID: " .. cleanID)
-            else
-                print("[191] พบ AudioPlayer แต่ไม่สามารถดึง ID ได้: " .. obj.SoundId)
+    -- รายชื่อผู้เล่นทั้งหมด (รวม LocalPlayer)
+    local allPlayers = Players:GetPlayers()
+    print("[191] จำนวนผู้เล่นในเซิร์ฟเวอร์: " .. #allPlayers)
+    
+    -- 1. สแกน Workspace และบริการอื่น ๆ (สำหรับ AudioPlayer ที่ไม่ระบุเจ้าของ)
+    local globalContainers = {Workspace, SoundService, ReplicatedStorage, Lighting}
+    for _, container in ipairs(globalContainers) do
+        pcall(function()
+            for _, obj in ipairs(container:GetDescendants()) do
+                if obj:IsA("AudioPlayer") and obj.SoundId ~= "" and not seen[obj] then
+                    seen[obj] = true
+                    local cleanID = ExtractAssetId(obj.SoundId)
+                    if cleanID then
+                        local deviceName = GetDeviceName(obj)
+                        local ownerName = DetermineOwner(obj)
+                        table.insert(found, {ownerName = ownerName, audio = obj, device = deviceName, id = cleanID})
+                        print("[191] (Global) พบ: " .. ownerName .. " - " .. deviceName .. " | ID: " .. cleanID)
+                    end
+                end
             end
+        end)
+    end
+    
+    -- 2. สแกนผู้เล่นทีละคน (Character + PlayerGui)
+    for _, player in ipairs(allPlayers) do
+        print("[191] กำลังตรวจสอบผู้เล่น: " .. player.Name)
+        local containers = {}
+        if player.Character then
+            table.insert(containers, player.Character)
+        end
+        local pg = player:FindFirstChild("PlayerGui")
+        if pg then
+            table.insert(containers, pg)
+        end
+        for _, container in ipairs(containers) do
+            pcall(function()
+                for _, obj in ipairs(container:GetDescendants()) do
+                    if obj:IsA("AudioPlayer") and obj.SoundId ~= "" and not seen[obj] then
+                        seen[obj] = true
+                        local cleanID = ExtractAssetId(obj.SoundId)
+                        if cleanID then
+                            local deviceName = GetDeviceName(obj)
+                            -- สำหรับของผู้เล่น เราใช้ชื่อ player โดยตรง
+                            local ownerName = player.Name
+                            table.insert(found, {ownerName = ownerName, audio = obj, device = deviceName, id = cleanID})
+                            print("[191] (Player) พบ: " .. ownerName .. " - " .. deviceName .. " | ID: " .. cleanID)
+                        end
+                    end
+                end
+            end)
         end
     end
-    print("[191] สแกนเสร็จ พบ AudioPlayer ทั้งหมด " .. #found .. " รายการ")
+    
+    print("[191] สแกนเสร็จสิ้น พบ AudioPlayer ทั้งหมด " .. #found .. " รายการ")
     return found
 end
 
@@ -474,9 +514,9 @@ local function PerformScan()
     ScanBtn.Interactable = false
     ScanBtn.Text = "⏳ กำลังสแกน..."
     ClearSongList()
+    
     task.spawn(function()
-        task.wait(1)  -- รอให้ UI อัปเดต
-        local audioPlayers = DeepScan()
+        local audioPlayers = ScanEverything()
         if #audioPlayers == 0 then
             local emptyLabel = Instance.new("TextLabel")
             emptyLabel.Text = "ไม่พบ AudioPlayer ในเซิร์ฟเวอร์"
@@ -555,6 +595,5 @@ MainFrame:GetPropertyChangedSignal("Visible"):Connect(function()
     end
 end)
 
--- แสดงปุ่มเปิดเมื่อพร้อม
 OpenBtn.Visible = true
 print("[191] โหลดเสร็จ กดปุ่ม 191 เพื่อเปิด")
