@@ -1,8 +1,8 @@
 --[[
-    Script Name: 191 (AudioPlayer Scanner - Full Fix)
+    Script Name: 191 (AudioPlayer Scanner - Workspace + Players)
     Theme: Black & Red
-    Format: PlayerName/Server - DeviceName - AudioPlayer
-    Features: Workspace scan, flexible ID extraction, debug prints
+    Format: PlayerName - DeviceName - AudioPlayer
+    Owner Detection: Character > Parent Name Pattern > Server
 ]]
 
 local Players = game:GetService("Players")
@@ -52,7 +52,7 @@ local function SmartCopy(text)
     return false
 end
 
--- ดึง Asset ID จาก SoundId ทุกรูปแบบ
+-- ดึง Asset ID จาก SoundId
 local function ExtractAssetId(soundId)
     local patterns = {
         "rbxassetid://(%d+)",
@@ -83,17 +83,42 @@ local function GetDeviceName(audioPlayer)
     return parent.Name
 end
 
--- หาเจ้าของ (ผู้เล่น)
-local function FindOwnerPlayer(audioPlayer)
+-- หาเจ้าของจาก Character โดยตรง
+local function GetOwnerFromCharacter(audioPlayer)
     local current = audioPlayer
     while current and current.Parent do
         if current:IsA("Model") then
             local player = Players:GetPlayerFromCharacter(current)
-            if player then return player end
+            if player then return player.Name end
         end
         current = current.Parent
     end
     return nil
+end
+
+-- หาเจ้าของจากชื่อ Parent (เช่น "RELICSxyz Boombox")
+local function GetOwnerFromParentName(audioPlayer)
+    local deviceName = GetDeviceName(audioPlayer)
+    -- ตรวจสอบว่าชื่ออุปกรณ์มีชื่อผู้เล่นหรือไม่
+    for _, player in ipairs(Players:GetPlayers()) do
+        local playerName = player.Name
+        -- ถ้าชื่ออุปกรณ์ขึ้นต้นด้วยชื่อผู้เล่นหรือมีชื่อผู้เล่นอยู่
+        if deviceName:sub(1, #playerName) == playerName or deviceName:find(playerName, 1, true) then
+            return playerName
+        end
+    end
+    return nil
+end
+
+-- ฟังก์ชันหลักระบุเจ้าของ
+local function DetermineOwner(audioPlayer)
+    local charOwner = GetOwnerFromCharacter(audioPlayer)
+    if charOwner then return charOwner end
+    
+    local nameOwner = GetOwnerFromParentName(audioPlayer)
+    if nameOwner then return nameOwner end
+    
+    return "Server/Ambient"
 end
 
 -- Open Button
@@ -246,7 +271,7 @@ local function CreateMusicCard(audioPlayer, assetInfo, ownerName, deviceName)
 
     local cleanID = ExtractAssetId(audioPlayer.SoundId) or "0"
 
-    -- Cover Image
+    -- Cover
     local Cover = Instance.new("ImageLabel")
     Cover.Size = UDim2.new(0, 75, 0, 75)
     Cover.Position = UDim2.new(0, 10, 0, 20)
@@ -264,7 +289,6 @@ local function CreateMusicCard(audioPlayer, assetInfo, ownerName, deviceName)
     StatusLabel.BackgroundTransparency = 1
     StatusLabel.TextXAlignment = Enum.TextXAlignment.Right
     StatusLabel.Parent = card
-
     if audioPlayer.IsPlaying then
         StatusLabel.Text = "🔊 PLAYING"
         StatusLabel.TextColor3 = COLORS.Success
@@ -336,7 +360,6 @@ local function CreateMusicCard(audioPlayer, assetInfo, ownerName, deviceName)
     CopyIDBtn.TextSize = 10
     CopyIDBtn.Parent = card
     AddCorner(CopyIDBtn, 6)
-    
     CopyIDBtn.MouseButton1Click:Connect(function()
         if SmartCopy(cleanID) then
             CopyIDBtn.Text = "COPIED!"
@@ -361,7 +384,6 @@ local function CreateMusicCard(audioPlayer, assetInfo, ownerName, deviceName)
     CopyNameBtn.TextSize = 10
     CopyNameBtn.Parent = card
     AddCorner(CopyNameBtn, 6)
-
     CopyNameBtn.MouseButton1Click:Connect(function()
         if SmartCopy(SongName.Text) then
             CopyNameBtn.Text = "COPIED!"
@@ -386,7 +408,6 @@ local function CreateMusicCard(audioPlayer, assetInfo, ownerName, deviceName)
     PlayBtn.TextSize = 18
     PlayBtn.Parent = card
     AddCorner(PlayBtn, 20)
-
     PlayBtn.MouseButton1Click:Connect(function()
         if currentPreviewSound and currentPreviewSound.SoundId == "rbxassetid://" .. cleanID and currentPreviewSound.IsPlaying then
             currentPreviewSound:Stop()
@@ -394,25 +415,20 @@ local function CreateMusicCard(audioPlayer, assetInfo, ownerName, deviceName)
             PlayBtn.BackgroundColor3 = COLORS.Success
             return
         end
-
         if currentPreviewSound then currentPreviewSound:Stop() end
-
         if not MainFrame:FindFirstChild("PreviewSound") then
             local s = Instance.new("Sound")
             s.Name = "PreviewSound"
             s.Parent = MainFrame
         end
-        
         local pSound = MainFrame.PreviewSound
         pSound.SoundId = "rbxassetid://" .. cleanID
         pSound.Volume = 2
         pSound.Looped = false
         pSound:Play()
         currentPreviewSound = pSound
-        
         PlayBtn.Text = "⏹"
         PlayBtn.BackgroundColor3 = COLORS.Stop
-        
         task.delay(60, function()
             if pSound.IsPlaying then
                 pSound:Stop()
@@ -420,7 +436,6 @@ local function CreateMusicCard(audioPlayer, assetInfo, ownerName, deviceName)
                 PlayBtn.BackgroundColor3 = COLORS.Success
             end
         end)
-        
         pSound.Ended:Connect(function()
             PlayBtn.Text = "▶"
             PlayBtn.BackgroundColor3 = COLORS.Success
@@ -428,17 +443,12 @@ local function CreateMusicCard(audioPlayer, assetInfo, ownerName, deviceName)
     end)
 end
 
--- Scan Function (ทุกที่)
+-- Scan Function
 local function ScanAllAudioPlayers()
     local found = {}
-    local playerCharMap = {}
-    for _, plr in ipairs(Players:GetPlayers()) do
-        if plr.Character then
-            playerCharMap[plr.Character] = plr
-        end
-    end
+    local seen = {}
     
-    -- ขยายพื้นที่สแกนให้ครอบคลุม
+    -- รายการที่ต้องการสแกน
     local searchContainers = {
         Workspace,
         SoundService,
@@ -451,37 +461,30 @@ local function ScanAllAudioPlayers()
         end
         local pg = plr:FindFirstChild("PlayerGui")
         if pg then table.insert(searchContainers, pg) end
-        local ps = plr:FindFirstChild("PlayerScripts")
-        if ps then table.insert(searchContainers, ps) end
     end
     
-    local seen = {}
-    local totalFound = 0
     for _, container in ipairs(searchContainers) do
         pcall(function()
             for _, obj in ipairs(container:GetDescendants()) do
                 if obj:IsA("AudioPlayer") and obj.SoundId ~= "" then
                     if seen[obj] then continue end
                     seen[obj] = true
-                    totalFound = totalFound + 1
                     local cleanID = ExtractAssetId(obj.SoundId)
-                    print("[191] Found AudioPlayer: " .. obj:GetFullName() .. ", SoundId: " .. obj.SoundId .. ", extracted ID: " .. (cleanID or "nil"))
                     if cleanID then
                         local deviceName = GetDeviceName(obj)
-                        local owner = FindOwnerPlayer(obj)
-                        local ownerName = owner and owner.Name or "Server/Ambient"
+                        local ownerName = DetermineOwner(obj)
                         table.insert(found, {
                             ownerName = ownerName,
                             audio = obj,
                             device = deviceName,
                             id = cleanID
                         })
+                        print("[191] Found: " .. ownerName .. " - " .. deviceName .. " | ID: " .. cleanID)
                     end
                 end
             end
         end)
     end
-    print("[191] Total AudioPlayers found: " .. totalFound .. ", valid IDs: " .. #found)
     return found
 end
 
@@ -516,8 +519,6 @@ local function PerformScan()
                     else
                         CreateMusicCard(audio, {Name = "ไม่สามารถดึงข้อมูล", Creator = {Name = "-"}}, owner, device)
                     end
-                else
-                    CreateMusicCard(audio, {Name = "Invalid ID", Creator = {Name = "-"}}, owner, device)
                 end
             end
         end
@@ -571,4 +572,4 @@ MainFrame:GetPropertyChangedSignal("Visible"):Connect(function()
 end)
 
 OpenBtn.Visible = true
-print("[191] Script loaded. Press 191 button to open.")
+print("[191] Loaded. กด 191 เพื่อเปิด")
