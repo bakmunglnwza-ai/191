@@ -1,0 +1,541 @@
+--[[
+    Script Name: 191 (AudioPlayer Scanner - Show Device Name)
+    Theme: Black & Red
+    Format: PlayerName - DeviceName - AudioPlayer
+]]
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local MarketplaceService = game:GetService("MarketplaceService")
+
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- // 1. UI Setup //
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "191_MainUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = PlayerGui
+
+-- // 2. Colors (Black & Red) //
+local COLORS = {
+    Background = Color3.fromRGB(10, 10, 10),
+    Sidebar = Color3.fromRGB(25, 25, 25),
+    Accent = Color3.fromRGB(200, 30, 30),
+    Success = Color3.fromRGB(34, 197, 94),
+    Stop = Color3.fromRGB(239, 68, 68),
+    Text = Color3.fromRGB(240, 240, 240),
+    TextDim = Color3.fromRGB(150, 150, 150),
+    ItemBG = Color3.fromRGB(30, 30, 30)
+}
+
+-- // 3. State //
+local currentPreviewSound = nil
+
+-- // 4. Helper Functions //
+local function AddCorner(parent, radius)
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, radius or 8)
+    corner.Parent = parent
+    return corner
+end
+
+local function SmartCopy(text)
+    if setclipboard then setclipboard(text) return true end
+    if toclipboard then toclipboard(text) return true end
+    return false
+end
+
+-- หาชื่ออุปกรณ์ (Parent ที่ไม่ใช่ Character/Humanoid)
+local function GetDeviceName(audioPlayer)
+    local parent = audioPlayer.Parent
+    if not parent then return "Unknown Device" end
+    
+    -- ถ้าอยู่ใน Character โดยตรง ให้ใช้ชื่อ Model
+    if parent:IsA("Model") then
+        return parent.Name
+    end
+    
+    -- ถ้าอยู่ใน PlayerGui ให้ใช้ชื่อ ScreenGui/Frame
+    if parent:IsA("GuiObject") then
+        return parent.Name
+    end
+    
+    -- หาชื่อที่เหมาะสม (ไม่เอา Character, Humanoid, Part ทั่วไป)
+    local current = parent
+    while current do
+        if current:IsA("Tool") or current:IsA("Model") or current:IsA("GuiObject") then
+            return current.Name
+        end
+        current = current.Parent
+    end
+    
+    return parent.Name
+end
+
+-- // 5. Open Button //
+local OpenBtn = Instance.new("TextButton")
+OpenBtn.Name = "OpenButton"
+OpenBtn.Text = "191"
+OpenBtn.Font = Enum.Font.GothamBlack
+OpenBtn.TextSize = 16
+OpenBtn.Size = UDim2.new(0, 100, 0, 40)
+OpenBtn.Position = UDim2.new(0, 20, 0, 20)
+OpenBtn.BackgroundColor3 = COLORS.Accent
+OpenBtn.TextColor3 = Color3.new(1,1,1)
+OpenBtn.Visible = false
+OpenBtn.Parent = ScreenGui
+AddCorner(OpenBtn, 8)
+
+-- // 6. Main Frame //
+local MainFrame = Instance.new("Frame")
+MainFrame.Name = "MainFrame"
+MainFrame.Size = UDim2.new(0, 680, 0, 480)
+MainFrame.Position = UDim2.new(0.5, -340, 0.5, -240)
+MainFrame.BackgroundColor3 = COLORS.Background
+MainFrame.BorderSizePixel = 0
+MainFrame.ClipsDescendants = true
+MainFrame.Visible = false
+MainFrame.Parent = ScreenGui
+AddCorner(MainFrame, 12)
+
+local Stroke = Instance.new("UIStroke")
+Stroke.Color = COLORS.Accent
+Stroke.Transparency = 0.5
+Stroke.Thickness = 1.5
+Stroke.Parent = MainFrame
+
+local function ToggleMenu()
+    if MainFrame.Visible then
+        MainFrame.Visible = false
+        OpenBtn.Visible = true
+        if currentPreviewSound then currentPreviewSound:Stop() end
+    else
+        OpenBtn.Visible = false
+        MainFrame.Visible = true
+    end
+end
+
+OpenBtn.MouseButton1Click:Connect(ToggleMenu)
+
+-- // 7. Header //
+local Header = Instance.new("Frame")
+Header.Size = UDim2.new(1, 0, 0, 45)
+Header.BackgroundColor3 = COLORS.Sidebar
+Header.BorderSizePixel = 0
+Header.Parent = MainFrame
+
+local TitleIcon = Instance.new("TextLabel")
+TitleIcon.Text = "🎵"
+TitleIcon.TextSize = 24
+TitleIcon.BackgroundTransparency = 1
+TitleIcon.Size = UDim2.new(0, 50, 1, 0)
+TitleIcon.Parent = Header
+
+local Title = Instance.new("TextLabel")
+Title.Text = "191 - Audio Scanner"
+Title.Font = Enum.Font.GothamBlack
+Title.TextSize = 18
+Title.TextColor3 = COLORS.Text
+Title.Size = UDim2.new(0, 250, 1, 0)
+Title.Position = UDim2.new(0, 50, 0, 0)
+Title.BackgroundTransparency = 1
+Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.Parent = Header
+
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Text = "×"
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.TextSize = 24
+CloseBtn.TextColor3 = COLORS.TextDim
+CloseBtn.BackgroundColor3 = COLORS.Stop
+CloseBtn.BackgroundTransparency = 1
+CloseBtn.Size = UDim2.new(0, 40, 0, 40)
+CloseBtn.Position = UDim2.new(1, -45, 0, 2)
+CloseBtn.Parent = Header
+AddCorner(CloseBtn, 8)
+
+CloseBtn.MouseButton1Click:Connect(function()
+    ToggleMenu()
+    if currentPreviewSound then currentPreviewSound:Stop() end
+end)
+
+-- // 8. Control Bar //
+local ControlBar = Instance.new("Frame")
+ControlBar.Size = UDim2.new(1, -20, 0, 45)
+ControlBar.Position = UDim2.new(0, 10, 0, 55)
+ControlBar.BackgroundTransparency = 1
+ControlBar.Parent = MainFrame
+
+local ScanBtn = Instance.new("TextButton")
+ScanBtn.Text = "🔍 สแกนเพลง"
+ScanBtn.Font = Enum.Font.GothamBold
+ScanBtn.TextSize = 14
+ScanBtn.Size = UDim2.new(0.65, 0, 1, 0)
+ScanBtn.Position = UDim2.new(0, 0, 0, 0)
+ScanBtn.BackgroundColor3 = COLORS.Accent
+ScanBtn.TextColor3 = Color3.new(1,1,1)
+ScanBtn.Parent = ControlBar
+AddCorner(ScanBtn, 8)
+
+local ClearBtn = Instance.new("TextButton")
+ClearBtn.Text = "🗑️ ล้างรายการ"
+ClearBtn.Font = Enum.Font.GothamBold
+ClearBtn.TextSize = 14
+ClearBtn.Size = UDim2.new(0.33, 0, 1, 0)
+ClearBtn.Position = UDim2.new(0.67, 0, 0, 0)
+ClearBtn.BackgroundColor3 = COLORS.Sidebar
+ClearBtn.TextColor3 = COLORS.Text
+ClearBtn.Parent = ControlBar
+AddCorner(ClearBtn, 8)
+
+-- // 9. Results List //
+local ListContainer = Instance.new("ScrollingFrame")
+ListContainer.Size = UDim2.new(1, -20, 1, -110)
+ListContainer.Position = UDim2.new(0, 10, 0, 110)
+ListContainer.BackgroundTransparency = 1
+ListContainer.ScrollBarThickness = 5
+ListContainer.ScrollBarImageColor3 = COLORS.Accent
+ListContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
+ListContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+ListContainer.Parent = MainFrame
+
+local ListLayout = Instance.new("UIListLayout")
+ListLayout.Padding = UDim.new(0, 8)
+ListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+ListLayout.Parent = ListContainer
+
+local function ClearSongList()
+    for _, child in pairs(ListContainer:GetChildren()) do
+        if child:IsA("Frame") then child:Destroy() end
+    end
+end
+
+ClearBtn.MouseButton1Click:Connect(ClearSongList)
+
+-- // 10. Create Music Card (Updated Format) //
+local function CreateMusicCard(audioPlayer, assetInfo, playerName, deviceName)
+    local card = Instance.new("Frame")
+    card.Size = UDim2.new(1, -6, 0, 115)
+    card.BackgroundColor3 = COLORS.ItemBG
+    card.Parent = ListContainer
+    AddCorner(card, 10)
+
+    local cleanID = audioPlayer.SoundId:match("%d+") or "0"
+
+    -- Cover Image
+    local Cover = Instance.new("ImageLabel")
+    Cover.Size = UDim2.new(0, 75, 0, 75)
+    Cover.Position = UDim2.new(0, 10, 0, 20)
+    Cover.BackgroundColor3 = COLORS.Sidebar
+    Cover.Image = "rbxthumb://type=Asset&id=" .. cleanID .. "&w=150&h=150"
+    Cover.Parent = card
+    AddCorner(Cover, 8)
+
+    -- Status (Playing/Idle)
+    local StatusLabel = Instance.new("TextLabel")
+    StatusLabel.Font = Enum.Font.GothamBlack
+    StatusLabel.TextSize = 10
+    StatusLabel.Size = UDim2.new(0, 100, 0, 16)
+    StatusLabel.Position = UDim2.new(1, -110, 0, 8)
+    StatusLabel.BackgroundTransparency = 1
+    StatusLabel.TextXAlignment = Enum.TextXAlignment.Right
+    StatusLabel.Parent = card
+
+    if audioPlayer.IsPlaying then
+        StatusLabel.Text = "🔊 PLAYING"
+        StatusLabel.TextColor3 = COLORS.Success
+    else
+        StatusLabel.Text = "🔈 IDLE"
+        StatusLabel.TextColor3 = COLORS.TextDim
+    end
+
+    -- Song Name
+    local SongName = Instance.new("TextBox")
+    SongName.Text = assetInfo and assetInfo.Name or "Unknown Song"
+    SongName.Size = UDim2.new(1, -200, 0, 20)
+    SongName.Position = UDim2.new(0, 95, 0, 8)
+    SongName.BackgroundTransparency = 1
+    SongName.TextColor3 = COLORS.Text
+    SongName.Font = Enum.Font.GothamBold
+    SongName.TextSize = 14
+    SongName.TextXAlignment = Enum.TextXAlignment.Left
+    SongName.TextEditable = false
+    SongName.ClearTextOnFocus = false
+    SongName.Parent = card
+
+    -- Creator
+    local CreatorName = Instance.new("TextLabel")
+    CreatorName.Text = "By: " .. (assetInfo and assetInfo.Creator.Name or "Unknown")
+    CreatorName.Size = UDim2.new(1, -200, 0, 16)
+    CreatorName.Position = UDim2.new(0, 95, 0, 30)
+    CreatorName.BackgroundTransparency = 1
+    CreatorName.TextColor3 = COLORS.TextDim
+    CreatorName.Font = Enum.Font.Gotham
+    CreatorName.TextSize = 12
+    CreatorName.TextXAlignment = Enum.TextXAlignment.Left
+    CreatorName.Parent = card
+
+    -- 🎯 รูปแบบใหม่: "PlayerName - DeviceName - AudioPlayer"
+    local SourceLabel = Instance.new("TextLabel")
+    SourceLabel.Text = playerName .. " - " .. deviceName .. " - AudioPlayer"
+    SourceLabel.Size = UDim2.new(1, -200, 0, 16)
+    SourceLabel.Position = UDim2.new(0, 95, 0, 48)
+    SourceLabel.BackgroundTransparency = 1
+    SourceLabel.TextColor3 = COLORS.Accent
+    SourceLabel.Font = Enum.Font.GothamBold
+    SourceLabel.TextSize = 12
+    SourceLabel.TextXAlignment = Enum.TextXAlignment.Left
+    SourceLabel.Parent = card
+
+    -- ID Box
+    local IDBox = Instance.new("TextBox")
+    IDBox.Text = cleanID
+    IDBox.Size = UDim2.new(0, 90, 0, 22)
+    IDBox.Position = UDim2.new(0, 95, 0, 68)
+    IDBox.BackgroundColor3 = COLORS.Background
+    IDBox.TextColor3 = COLORS.Accent
+    IDBox.Font = Enum.Font.Code
+    IDBox.TextSize = 12
+    IDBox.ClearTextOnFocus = false
+    IDBox.TextEditable = false
+    IDBox.Parent = card
+    AddCorner(IDBox, 6)
+
+    -- Copy ID Button
+    local CopyIDBtn = Instance.new("TextButton")
+    CopyIDBtn.Text = "COPY ID"
+    CopyIDBtn.Size = UDim2.new(0, 60, 0, 22)
+    CopyIDBtn.Position = UDim2.new(0, 190, 0, 68)
+    CopyIDBtn.BackgroundColor3 = COLORS.Sidebar
+    CopyIDBtn.TextColor3 = COLORS.Text
+    CopyIDBtn.Font = Enum.Font.GothamBold
+    CopyIDBtn.TextSize = 10
+    CopyIDBtn.Parent = card
+    AddCorner(CopyIDBtn, 6)
+    
+    CopyIDBtn.MouseButton1Click:Connect(function()
+        if SmartCopy(cleanID) then
+            CopyIDBtn.Text = "COPIED!"
+        else
+            IDBox:CaptureFocus()
+            IDBox.SelectionStart = 1
+            IDBox.CursorPosition = #IDBox.Text + 1
+            CopyIDBtn.Text = "CTRL+C"
+        end
+        task.wait(1)
+        CopyIDBtn.Text = "COPY ID"
+    end)
+
+    -- Copy Name Button
+    local CopyNameBtn = Instance.new("TextButton")
+    CopyNameBtn.Text = "NAME"
+    CopyNameBtn.Size = UDim2.new(0, 50, 0, 22)
+    CopyNameBtn.Position = UDim2.new(0, 255, 0, 68)
+    CopyNameBtn.BackgroundColor3 = COLORS.Sidebar
+    CopyNameBtn.TextColor3 = COLORS.Text
+    CopyNameBtn.Font = Enum.Font.GothamBold
+    CopyNameBtn.TextSize = 10
+    CopyNameBtn.Parent = card
+    AddCorner(CopyNameBtn, 6)
+
+    CopyNameBtn.MouseButton1Click:Connect(function()
+        if SmartCopy(SongName.Text) then
+            CopyNameBtn.Text = "COPIED!"
+        else
+            SongName:CaptureFocus()
+            SongName.SelectionStart = 1
+            SongName.CursorPosition = #SongName.Text + 1
+            CopyNameBtn.Text = "CTRL+C"
+        end
+        task.wait(1)
+        CopyNameBtn.Text = "NAME"
+    end)
+
+    -- Play Button
+    local PlayBtn = Instance.new("TextButton")
+    PlayBtn.Text = "▶"
+    PlayBtn.Size = UDim2.new(0, 40, 0, 40)
+    PlayBtn.Position = UDim2.new(1, -50, 0.5, -10)
+    PlayBtn.BackgroundColor3 = COLORS.Success
+    PlayBtn.TextColor3 = Color3.new(1,1,1)
+    PlayBtn.Font = Enum.Font.GothamBold
+    PlayBtn.TextSize = 18
+    PlayBtn.Parent = card
+    AddCorner(PlayBtn, 20)
+
+    PlayBtn.MouseButton1Click:Connect(function()
+        if currentPreviewSound and currentPreviewSound.SoundId == "rbxassetid://" .. cleanID and currentPreviewSound.IsPlaying then
+            currentPreviewSound:Stop()
+            PlayBtn.Text = "▶"
+            PlayBtn.BackgroundColor3 = COLORS.Success
+            return
+        end
+
+        if currentPreviewSound then currentPreviewSound:Stop() end
+
+        if not MainFrame:FindFirstChild("PreviewSound") then
+            local s = Instance.new("Sound")
+            s.Name = "PreviewSound"
+            s.Parent = MainFrame
+        end
+        
+        local pSound = MainFrame.PreviewSound
+        pSound.SoundId = "rbxassetid://" .. cleanID
+        pSound.Volume = 2
+        pSound.Looped = false
+        pSound:Play()
+        currentPreviewSound = pSound
+        
+        PlayBtn.Text = "⏹"
+        PlayBtn.BackgroundColor3 = COLORS.Stop
+        
+        task.delay(60, function()
+            if pSound.IsPlaying then
+                pSound:Stop()
+                PlayBtn.Text = "▶"
+                PlayBtn.BackgroundColor3 = COLORS.Success
+            end
+        end)
+        
+        pSound.Ended:Connect(function()
+            PlayBtn.Text = "▶"
+            PlayBtn.BackgroundColor3 = COLORS.Success
+        end)
+    end)
+end
+
+-- // 11. Scan Function (Players' AudioPlayer only) //
+local function ScanPlayersAudioPlayers()
+    local found = {}
+    local playerList = Players:GetPlayers()
+    
+    for _, player in ipairs(playerList) do
+        if player.Character then
+            local containers = {
+                player.Character,
+                player:FindFirstChild("PlayerGui")
+            }
+            for _, container in ipairs(containers) do
+                if container then
+                    pcall(function()
+                        for _, obj in ipairs(container:GetDescendants()) do
+                            if obj:IsA("AudioPlayer") and obj.SoundId ~= "" then
+                                local cleanID = obj.SoundId:match("%d+")
+                                if cleanID and #cleanID > 3 then
+                                    local deviceName = GetDeviceName(obj)
+                                    table.insert(found, {
+                                        player = player,
+                                        audio = obj,
+                                        device = deviceName
+                                    })
+                                end
+                            end
+                        end
+                    end)
+                end
+            end
+        end
+    end
+    return found
+end
+
+-- // 12. Refresh Display //
+local function PerformScan()
+    ScanBtn.Interactable = false
+    ScanBtn.Text = "⏳ กำลังสแกน..."
+    
+    ClearSongList()
+    
+    task.spawn(function()
+        local audioPlayers = ScanPlayersAudioPlayers()
+        
+        print("[191] Found " .. #audioPlayers .. " AudioPlayer(s) from players.")
+        
+        if #audioPlayers == 0 then
+            local emptyLabel = Instance.new("TextLabel")
+            emptyLabel.Text = "ไม่พบ AudioPlayer ในผู้เล่นขณะนี้"
+            emptyLabel.Size = UDim2.new(1, 0, 0, 30)
+            emptyLabel.BackgroundTransparency = 1
+            emptyLabel.TextColor3 = COLORS.TextDim
+            emptyLabel.Font = Enum.Font.Gotham
+            emptyLabel.TextSize = 14
+            emptyLabel.Parent = ListContainer
+        else
+            for _, data in ipairs(audioPlayers) do
+                local audio = data.audio
+                local player = data.player
+                local device = data.device
+                local assetId = tonumber(audio.SoundId:match("%d+"))
+                
+                if assetId then
+                    local success, info = pcall(function()
+                        return MarketplaceService:GetProductInfo(assetId)
+                    end)
+                    if success and info then
+                        CreateMusicCard(audio, info, player.Name, device)
+                    else
+                        CreateMusicCard(audio, {Name = "ไม่สามารถดึงข้อมูล", Creator = {Name = "-"}}, player.Name, device)
+                    end
+                end
+            end
+        end
+        
+        ScanBtn.Interactable = true
+        ScanBtn.Text = "🔍 สแกนเพลง"
+    end)
+end
+
+ScanBtn.MouseButton1Click:Connect(PerformScan)
+
+-- // 13. Drag Functionality //
+local dragging, dragInput, dragStart, startPos
+
+local function updateDrag(input)
+    local delta = input.Position - dragStart
+    MainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+Header.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = MainFrame.Position
+        
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+Header.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        updateDrag(input)
+    end
+end)
+
+-- // 14. Hotkey (Right Ctrl) //
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.RightControl and not gameProcessed then
+        ToggleMenu()
+    end
+end)
+
+-- // 15. Auto-stop preview on close //
+MainFrame:GetPropertyChangedSignal("Visible"):Connect(function()
+    if not MainFrame.Visible and currentPreviewSound then
+        currentPreviewSound:Stop()
+    end
+end)
+
+OpenBtn.Visible = true
+print("[191] Loaded. Press '191' button to open.")
