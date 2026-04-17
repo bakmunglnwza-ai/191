@@ -1,13 +1,14 @@
 --[[
-    Script Name: 191 (AudioPlayer Scanner - Show Device Name)
+    Script Name: 191 (AudioPlayer Scanner - Workspace + Players)
     Theme: Black & Red
-    Format: PlayerName - DeviceName - AudioPlayer
+    Format: PlayerName/Server - DeviceName - AudioPlayer
 ]]
 
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local MarketplaceService = game:GetService("MarketplaceService")
+local Workspace = game:GetService("Workspace")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -72,6 +73,21 @@ local function GetDeviceName(audioPlayer)
     end
     
     return parent.Name
+end
+
+-- ตรวจสอบว่า AudioPlayer อยู่ภายใต้ Character ของผู้เล่นคนใด
+local function FindOwnerPlayer(audioPlayer)
+    local current = audioPlayer
+    while current and current.Parent do
+        if current:IsA("Model") then
+            local player = Players:GetPlayerFromCharacter(current)
+            if player then
+                return player
+            end
+        end
+        current = current.Parent
+    end
+    return nil
 end
 
 -- // 5. Open Button //
@@ -215,7 +231,7 @@ end
 ClearBtn.MouseButton1Click:Connect(ClearSongList)
 
 -- // 10. Create Music Card (Updated Format) //
-local function CreateMusicCard(audioPlayer, assetInfo, playerName, deviceName)
+local function CreateMusicCard(audioPlayer, assetInfo, ownerName, deviceName)
     local card = Instance.new("Frame")
     card.Size = UDim2.new(1, -6, 0, 115)
     card.BackgroundColor3 = COLORS.ItemBG
@@ -277,9 +293,9 @@ local function CreateMusicCard(audioPlayer, assetInfo, playerName, deviceName)
     CreatorName.TextXAlignment = Enum.TextXAlignment.Left
     CreatorName.Parent = card
 
-    -- 🎯 รูปแบบใหม่: "PlayerName - DeviceName - AudioPlayer"
+    -- 🎯 รูปแบบใหม่: "OwnerName - DeviceName - AudioPlayer"
     local SourceLabel = Instance.new("TextLabel")
-    SourceLabel.Text = playerName .. " - " .. deviceName .. " - AudioPlayer"
+    SourceLabel.Text = ownerName .. " - " .. deviceName .. " - AudioPlayer"
     SourceLabel.Size = UDim2.new(1, -200, 0, 16)
     SourceLabel.Position = UDim2.new(0, 95, 0, 48)
     SourceLabel.BackgroundTransparency = 1
@@ -406,38 +422,58 @@ local function CreateMusicCard(audioPlayer, assetInfo, playerName, deviceName)
     end)
 end
 
--- // 11. Scan Function (Players' AudioPlayer only) //
-local function ScanPlayersAudioPlayers()
+-- // 11. Scan Function (Workspace + Players) //
+local function ScanAllAudioPlayers()
     local found = {}
-    local playerList = Players:GetPlayers()
     
-    for _, player in ipairs(playerList) do
-        if player.Character then
-            local containers = {
-                player.Character,
-                player:FindFirstChild("PlayerGui")
-            }
-            for _, container in ipairs(containers) do
-                if container then
-                    pcall(function()
-                        for _, obj in ipairs(container:GetDescendants()) do
-                            if obj:IsA("AudioPlayer") and obj.SoundId ~= "" then
-                                local cleanID = obj.SoundId:match("%d+")
-                                if cleanID and #cleanID > 3 then
-                                    local deviceName = GetDeviceName(obj)
-                                    table.insert(found, {
-                                        player = player,
-                                        audio = obj,
-                                        device = deviceName
-                                    })
-                                end
-                            end
-                        end
-                    end)
-                end
-            end
+    -- สร้าง mapping Character -> Player
+    local playerCharMap = {}
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr.Character then
+            playerCharMap[plr.Character] = plr
         end
     end
+    
+    -- รายการที่ต้องการสแกน (เพิ่ม Workspace และ Player ทุกคน)
+    local searchContainers = {Workspace}
+    
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr.Character then
+            table.insert(searchContainers, plr.Character)
+        end
+        local pg = plr:FindFirstChild("PlayerGui")
+        if pg then
+            table.insert(searchContainers, pg)
+        end
+    end
+    
+    -- ใช้ Set เพื่อป้องกันการซ้ำของ AudioPlayer ตัวเดียวกัน (ถ้าอยู่ภายใต้หลาย container)
+    local seen = {}
+    
+    for _, container in ipairs(searchContainers) do
+        pcall(function()
+            for _, obj in ipairs(container:GetDescendants()) do
+                if obj:IsA("AudioPlayer") and obj.SoundId ~= "" then
+                    if seen[obj] then continue end
+                    seen[obj] = true
+                    
+                    local cleanID = obj.SoundId:match("%d+")
+                    if cleanID and #cleanID > 3 then
+                        local deviceName = GetDeviceName(obj)
+                        local owner = FindOwnerPlayer(obj)
+                        local ownerName = owner and owner.Name or "Server/Ambient"
+                        
+                        table.insert(found, {
+                            ownerName = ownerName,
+                            audio = obj,
+                            device = deviceName
+                        })
+                    end
+                end
+            end
+        end)
+    end
+    
     return found
 end
 
@@ -449,13 +485,13 @@ local function PerformScan()
     ClearSongList()
     
     task.spawn(function()
-        local audioPlayers = ScanPlayersAudioPlayers()
+        local audioPlayers = ScanAllAudioPlayers()
         
-        print("[191] Found " .. #audioPlayers .. " AudioPlayer(s) from players.")
+        print("[191] Found " .. #audioPlayers .. " AudioPlayer(s).")
         
         if #audioPlayers == 0 then
             local emptyLabel = Instance.new("TextLabel")
-            emptyLabel.Text = "ไม่พบ AudioPlayer ในผู้เล่นขณะนี้"
+            emptyLabel.Text = "ไม่พบ AudioPlayer ในเซิร์ฟเวอร์"
             emptyLabel.Size = UDim2.new(1, 0, 0, 30)
             emptyLabel.BackgroundTransparency = 1
             emptyLabel.TextColor3 = COLORS.TextDim
@@ -465,7 +501,7 @@ local function PerformScan()
         else
             for _, data in ipairs(audioPlayers) do
                 local audio = data.audio
-                local player = data.player
+                local owner = data.ownerName
                 local device = data.device
                 local assetId = tonumber(audio.SoundId:match("%d+"))
                 
@@ -474,9 +510,9 @@ local function PerformScan()
                         return MarketplaceService:GetProductInfo(assetId)
                     end)
                     if success and info then
-                        CreateMusicCard(audio, info, player.Name, device)
+                        CreateMusicCard(audio, info, owner, device)
                     else
-                        CreateMusicCard(audio, {Name = "ไม่สามารถดึงข้อมูล", Creator = {Name = "-"}}, player.Name, device)
+                        CreateMusicCard(audio, {Name = "ไม่สามารถดึงข้อมูล", Creator = {Name = "-"}}, owner, device)
                     end
                 end
             end
