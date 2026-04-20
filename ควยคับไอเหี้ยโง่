@@ -1,4 +1,4 @@
--- 191 Script - Wiper Unlimited
+-- 191 Script
 -- วางไว้ใน StarterPlayerScripts
 
 local Players = game:GetService("Players")
@@ -8,21 +8,19 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- ═══════════════════════════════════════════════════════════════════════════
--- UI SETUP
--- ═══════════════════════════════════════════════════════════════════════════
-
+-- ═══════════════════════════════════════════════════════════════
+-- SCREEN GUI
+-- ═══════════════════════════════════════════════════════════════
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "191_Wiper"
+ScreenGui.Name = "191_Gui"
 ScreenGui.ResetOnSpawn = false
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ScreenGui.IgnoreGuiInset = true
 ScreenGui.Parent = PlayerGui
 
--- ═══════════════════════════════════════════════════════════════════════════
--- HELPER FUNCTIONS
--- ═══════════════════════════════════════════════════════════════════════════
-
+-- ═══════════════════════════════════════════════════════════════
+-- FUNCTIONS
+-- ═══════════════════════════════════════════════════════════════
 local function MakeDraggable(handle, target)
     local dragging, dragInput, dragStart, startPos
 
@@ -55,7 +53,9 @@ end
 
 local function NewFrame(props)
     local f = Instance.new("Frame")
-    for k, v in pairs(props) do f[k] = v end
+    for k, v in pairs(props) do
+        f[k] = v
+    end
     return f
 end
 
@@ -64,7 +64,9 @@ local function NewLabel(props)
     l.BackgroundTransparency = 1
     l.Font = Enum.Font.GothamBold
     l.TextColor3 = Color3.fromRGB(200, 200, 200)
-    for k, v in pairs(props) do l[k] = v end
+    for k, v in pairs(props) do
+        l[k] = v
+    end
     return l
 end
 
@@ -72,7 +74,9 @@ local function NewButton(props)
     local b = Instance.new("TextButton")
     b.Font = Enum.Font.GothamBold
     b.AutoButtonColor = false
-    for k, v in pairs(props) do b[k] = v end
+    for k, v in pairs(props) do
+        b[k] = v
+    end
     return b
 end
 
@@ -91,10 +95,9 @@ local function AddStroke(parent, color, thickness)
     return s
 end
 
--- ═══════════════════════════════════════════════════════════════════════════
--- TOGGLE BUTTON (ปุ่มเปิดเมนู)
--- ═══════════════════════════════════════════════════════════════════════════
-
+-- ═══════════════════════════════════════════════════════════════
+-- TOGGLE BUTTON
+-- ═══════════════════════════════════════════════════════════════
 local ToggleBtn = NewFrame({
     Name = "ToggleBtn",
     Size = UDim2.new(0, 44, 0, 44),
@@ -108,7 +111,6 @@ local ToggleBtn = NewFrame({
 AddCorner(ToggleBtn, 10)
 AddStroke(ToggleBtn, Color3.fromRGB(50, 50, 50))
 
--- ไอคอน 3 เส้น
 for i = 1, 3 do
     local line = NewFrame({
         Size = UDim2.new(0, 16, 0, 2),
@@ -122,13 +124,12 @@ end
 
 MakeDraggable(ToggleBtn, ToggleBtn)
 
--- ═══════════════════════════════════════════════════════════════════════════
--- MAIN WINDOW
--- ═══════════════════════════════════════════════════════════════════════════
-
+-- ═══════════════════════════════════════════════════════════════
+-- MAIN FRAME
+-- ═══════════════════════════════════════════════════════════════
 local MainFrame = NewFrame({
     Name = "MainFrame",
-    Size = UDim2.new(0, 340, 0, 0),
+    Size = UDim2.new(0, 350, 0, 0),
     Position = UDim2.new(0, 30, 0, 90),
     BackgroundColor3 = Color3.fromRGB(0, 0, 0),
     BorderSizePixel = 0,
@@ -140,7 +141,7 @@ local MainFrame = NewFrame({
 AddCorner(MainFrame, 12)
 AddStroke(MainFrame, Color3.fromRGB(35, 35, 35))
 
--- ── Title Bar ──
+-- Title Bar
 local TitleBar = NewFrame({
     Name = "TitleBar",
     Size = UDim2.new(1, 0, 0, 42),
@@ -165,7 +166,7 @@ end
 
 local TitleText = NewLabel({
     Size = UDim2.new(1, 0, 1, 0),
-    Text = "191 WIPER",
+    Text = "191",
     TextColor3 = Color3.fromRGB(255, 255, 255),
     TextSize = 14,
     Font = Enum.Font.GothamBlack,
@@ -184,36 +185,121 @@ local TitleDiv = NewFrame({
 
 MakeDraggable(TitleBar, MainFrame)
 
--- ── Content Area ──
+-- Tab Bar
+local TabBar = NewFrame({
+    Name = "TabBar",
+    Size = UDim2.new(1, 0, 0, 38),
+    Position = UDim2.new(0, 0, 0, 42),
+    BackgroundColor3 = Color3.fromRGB(6, 6, 6),
+    BorderSizePixel = 0,
+    ZIndex = 6,
+    Parent = MainFrame,
+})
+
+local TabLayout = Instance.new("UIListLayout")
+TabLayout.FillDirection = Enum.FillDirection.Horizontal
+TabLayout.SortOrder = Enum.SortOrder.LayoutOrder
+TabLayout.Parent = TabBar
+
+-- Content Area
 local ContentArea = NewFrame({
     Name = "ContentArea",
-    Size = UDim2.new(1, 0, 1, -42),
-    Position = UDim2.new(0, 0, 0, 42),
+    Size = UDim2.new(1, 0, 1, -80),
+    Position = UDim2.new(0, 0, 0, 80),
     BackgroundColor3 = Color3.fromRGB(0, 0, 0),
     BorderSizePixel = 0,
     ZIndex = 6,
     Parent = MainFrame,
 })
 
-local Padding = Instance.new("UIPadding")
-Padding.PaddingTop = UDim.new(0, 12)
-Padding.PaddingBottom = UDim.new(0, 12)
-Padding.PaddingLeft = UDim.new(0, 12)
-Padding.PaddingRight = UDim.new(0, 12)
-Padding.Parent = ContentArea
+-- ═══════════════════════════════════════════════════════════════
+-- TAB SYSTEM
+-- ═══════════════════════════════════════════════════════════════
+local tabs = {}
+local tabBtns = {}
+local activeTab = nil
+local C_WHITE = Color3.fromRGB(255, 255, 255)
+local C_DIM = Color3.fromRGB(60, 60, 60)
 
-local ContentLayout = Instance.new("UIListLayout")
-ContentLayout.Padding = UDim.new(0, 10)
-ContentLayout.SortOrder = Enum.SortOrder.LayoutOrder
-ContentLayout.Parent = ContentArea
+local function SwitchTab(name)
+    for n, page in pairs(tabs) do
+        page.Visible = (n == name)
+    end
+    for n, btn in pairs(tabBtns) do
+        if n == name then
+            btn.TextColor3 = C_WHITE
+            btn.BorderSizePixel = 0
+            if btn:FindFirstChild("Underline") then
+                btn.Underline.BackgroundColor3 = C_WHITE
+            end
+        else
+            btn.TextColor3 = C_DIM
+            if btn:FindFirstChild("Underline") then
+                btn.Underline.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+            end
+        end
+    end
+    activeTab = name
+end
 
--- ═══════════════════════════════════════════════════════════════════════════
--- WIDGETS
--- ═══════════════════════════════════════════════════════════════════════════
+local function AddTab(name, label)
+    local btn = NewButton({
+        Name = name .. "Btn",
+        Size = UDim2.new(0.5, 0, 1, 0),
+        BackgroundColor3 = Color3.fromRGB(6, 6, 6),
+        BorderSizePixel = 0,
+        Text = label,
+        TextColor3 = C_DIM,
+        TextSize = 12,
+        ZIndex = 7,
+        Parent = TabBar,
+    })
 
-local function MakeRow(parent)
+    local underline = NewFrame({
+        Name = "Underline",
+        Size = UDim2.new(1, 0, 0, 2),
+        Position = UDim2.new(0, 0, 1, -2),
+        BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+        BorderSizePixel = 0,
+        ZIndex = 8,
+        Parent = btn,
+    })
+
+    local page = NewFrame({
+        Name = name .. "Page",
+        Size = UDim2.new(1, 0, 1, 0),
+        BackgroundColor3 = Color3.fromRGB(0, 0, 0),
+        BorderSizePixel = 0,
+        Visible = false,
+        ZIndex = 6,
+        Parent = ContentArea,
+    })
+
+    local list = Instance.new("UIListLayout")
+    list.Padding = UDim.new(0, 8)
+    list.SortOrder = Enum.SortOrder.LayoutOrder
+    list.Parent = page
+
+    local pad = Instance.new("UIPadding")
+    pad.PaddingTop = UDim.new(0, 12)
+    pad.PaddingBottom = UDim.new(0, 12)
+    pad.PaddingLeft = UDim.new(0, 12)
+    pad.PaddingRight = UDim.new(0, 12)
+    pad.Parent = page
+
+    tabBtns[name] = btn
+    tabs[name] = page
+
+    btn.MouseButton1Click:Connect(function()
+        SwitchTab(name)
+    end)
+
+    return page
+end
+
+local function MakeRow(parent, h)
     local row = NewFrame({
-        Size = UDim2.new(1, 0, 0, 50),
+        Size = UDim2.new(1, 0, 0, h or 44),
         BackgroundColor3 = Color3.fromRGB(13, 13, 13),
         BorderSizePixel = 0,
         ZIndex = 7,
@@ -224,27 +310,31 @@ local function MakeRow(parent)
     return row
 end
 
-local function MakeSmallRow(parent)
-    local row = NewFrame({
-        Size = UDim2.new(1, 0, 0, 38),
-        BackgroundColor3 = Color3.fromRGB(13, 13, 13),
-        BorderSizePixel = 0,
-        ZIndex = 7,
-        Parent = parent,
-    })
-    AddCorner(row, 8)
-    AddStroke(row, Color3.fromRGB(28, 28, 28))
-    return row
-end
+-- ═══════════════════════════════════════════════════════════════
+-- CREATE TABS
+-- ═══════════════════════════════════════════════════════════════
+local Page1 = AddTab("wiper", "WIPER")
+local Page2 = AddTab("credits", "CREDITS")
 
--- ═══════════════════════════════════════════════════════════════════════════
--- ROW 1: ความเร็ว
--- ═══════════════════════════════════════════════════════════════════════════
+-- ═══════════════════════════════════════════════════════════════
+-- PAGE 1 - WIPER SYSTEM
+-- ═══════════════════════════════════════════════════════════════
 
-local rateRow = MakeRow(ContentArea)
+-- Get Remote Events
+local re1, re2
+pcall(function()
+    local repStorage = ReplicatedStorage:FindFirstChild("RE")
+    if repStorage then
+        re1 = repStorage:FindFirstChild("1Playe1rTrigge1rEven1t")
+        re2 = repStorage:FindFirstChild("1Clea1rTool1s")
+    end
+end)
+
+-- Row: Rate per second
+local rateRow = MakeRow(Page1, 55)
 
 NewLabel({
-    Size = UDim2.new(0.55, 0, 0, 18),
+    Size = UDim2.new(0.6, 0, 0, 18),
     Position = UDim2.new(0, 10, 0, 8),
     Text = "ความเร็วเคลียร์",
     TextSize = 13,
@@ -254,9 +344,9 @@ NewLabel({
 })
 
 NewLabel({
-    Size = UDim2.new(0.55, 0, 0, 14),
+    Size = UDim2.new(0.6, 0, 0, 14),
     Position = UDim2.new(0, 10, 0, 28),
-    Text = "0 = ไม่จำกัด, 1-999999 = ครั้ง/วินาที",
+    Text = "จำนวนครั้งต่อวินาที (0 = ไม่จำกัด)",
     TextSize = 10,
     TextColor3 = Color3.fromRGB(55, 55, 55),
     TextXAlignment = Enum.TextXAlignment.Left,
@@ -265,8 +355,8 @@ NewLabel({
 })
 
 local RateBox = Instance.new("TextBox")
-RateBox.Size = UDim2.new(0, 100, 0, 36)
-RateBox.Position = UDim2.new(1, -110, 0.5, -18)
+RateBox.Size = UDim2.new(0, 90, 0, 35)
+RateBox.Position = UDim2.new(1, -100, 0.5, -17)
 RateBox.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
 RateBox.BorderSizePixel = 0
 RateBox.Text = "0"
@@ -282,17 +372,14 @@ AddStroke(RateBox, Color3.fromRGB(35, 35, 35))
 
 RateBox.FocusLost:Connect(function()
     local n = tonumber(RateBox.Text)
-    if not n then n = 0 end
-    if n < 0 then n = 0 end
-    if n > 999999 then n = 999999 end
+    if not n or n < 0 then
+        n = 0
+    end
     RateBox.Text = tostring(math.floor(n))
 end)
 
--- ═══════════════════════════════════════════════════════════════════════════
--- ROW 2: สถานะ
--- ═══════════════════════════════════════════════════════════════════════════
-
-local statusRow = MakeSmallRow(ContentArea)
+-- Row: Status
+local statusRow = MakeRow(Page1, 40)
 
 local StatusDot = NewFrame({
     Size = UDim2.new(0, 10, 0, 10),
@@ -315,28 +402,33 @@ local StatusLabel = NewLabel({
     Parent = statusRow,
 })
 
--- ═══════════════════════════════════════════════════════════════════════════
--- ROW 3: ปุ่มเริ่ม/หยุด
--- ═══════════════════════════════════════════════════════════════════════════
+local InfoLabel = NewLabel({
+    Size = UDim2.new(1, 0, 0, 16),
+    Position = UDim2.new(0, 12, 1, -18),
+    Text = "",
+    TextSize = 9,
+    TextColor3 = Color3.fromRGB(80, 80, 80),
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 8,
+    Parent = statusRow,
+})
 
+-- Main Action Button
 local ActionBtn = NewButton({
     Size = UDim2.new(1, 0, 0, 48),
-    BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+    BackgroundColor3 = Color3.fromRGB(13, 13, 13),
     BorderSizePixel = 0,
     Text = "▶ เริ่มเคลียร์",
     TextColor3 = Color3.fromRGB(255, 255, 255),
-    TextSize = 16,
+    TextSize = 14,
     ZIndex = 8,
-    Parent = ContentArea,
+    Parent = Page1,
 })
 AddCorner(ActionBtn, 8)
 AddStroke(ActionBtn, Color3.fromRGB(35, 35, 35))
 
--- ═══════════════════════════════════════════════════════════════════════════
--- ROW 4: ตัวนับ
--- ═══════════════════════════════════════════════════════════════════════════
-
-local counterRow = MakeSmallRow(ContentArea)
+-- Row: Counter
+local counterRow = MakeRow(Page1, 38)
 
 local CounterLabel = NewLabel({
     Size = UDim2.new(1, -20, 1, 0),
@@ -349,111 +441,39 @@ local CounterLabel = NewLabel({
     Parent = counterRow,
 })
 
--- ═══════════════════════════════════════════════════════════════════════════
--- ROW 5: โหมดปัจจุบัน
--- ═══════════════════════════════════════════════════════════════════════════
-
-local modeRow = MakeSmallRow(ContentArea)
-
-local ModeLabel = NewLabel({
-    Size = UDim2.new(1, -20, 1, 0),
-    Position = UDim2.new(0, 10, 0, 0),
-    Text = "โหมด: รอเริ่มงาน",
-    TextSize = 11,
-    TextColor3 = Color3.fromRGB(80, 80, 80),
-    TextXAlignment = Enum.TextXAlignment.Left,
-    ZIndex = 8,
-    Parent = modeRow,
-})
-
--- ═══════════════════════════════════════════════════════════════════════════
--- FOOTER
--- ═══════════════════════════════════════════════════════════════════════════
-
-local Footer = NewFrame({
-    Name = "Footer",
-    Size = UDim2.new(1, 0, 0, 28),
-    Position = UDim2.new(0, 0, 1, -28),
-    BackgroundColor3 = Color3.fromRGB(6, 6, 6),
-    BorderSizePixel = 0,
-    ZIndex = 6,
-    Parent = MainFrame,
-})
-
-NewLabel({
-    Size = UDim2.new(0.5, 0, 1, 0),
-    Position = UDim2.new(0, 12, 0, 0),
-    Text = "191 Wiper",
-    TextSize = 9,
-    TextColor3 = Color3.fromRGB(35, 35, 35),
-    TextXAlignment = Enum.TextXAlignment.Left,
-    ZIndex = 7,
-    Parent = Footer,
-})
-
-NewLabel({
-    Size = UDim2.new(0.5, 0, 1, 0),
-    Position = UDim2.new(0.5, -12, 0, 0),
-    Text = "Unlimited Mode",
-    TextSize = 9,
-    TextColor3 = Color3.fromRGB(35, 35, 35),
-    TextXAlignment = Enum.TextXAlignment.Right,
-    ZIndex = 7,
-    Parent = Footer,
-})
-
--- ปรับขนาด MainFrame
-MainFrame.Size = UDim2.new(0, 340, 0, 310)
-
--- ═══════════════════════════════════════════════════════════════════════════
--- WIper LOGIC
--- ═══════════════════════════════════════════════════════════════════════════
-
--- ดึง Remote Events
-local re1, re2
-pcall(function()
-    local repStorage = ReplicatedStorage:FindFirstChild("RE")
-    if repStorage then
-        re1 = repStorage:FindFirstChild("1Playe1rTrigge1rEven1t")
-        re2 = repStorage:FindFirstChild("1Clea1rTool1s")
-    end
-end)
-
+-- ═══════════════════════════════════════════════════════════════
+-- WIPER LOGIC (เคลียร์ทุกคน ไม่ต้องเช็คว่าถืออะไร)
+-- ═══════════════════════════════════════════════════════════════
 local active = false
 local clearLoop = nil
 local clearCount = 0
-
 local RED = Color3.fromRGB(180, 0, 0)
 local RED_DIM = Color3.fromRGB(40, 0, 0)
-local GREEN = Color3.fromRGB(0, 180, 0)
-local GREEN_DIM = Color3.fromRGB(0, 40, 0)
 
--- ฟังก์ชันเคลียร์ - เคลียร์ทุกคนที่มี Character (ไม่เช็คว่าถืออะไร)
-local function ClearAllPlayers()
+local function ClearItems()
     if not re1 or not re2 then
         return
     end
 
-    local cleared = 0
+    local clearedThisRound = 0
     
+    -- เคลียร์ทุกคนที่มีตัวละคร ไม่ต้องเช็คว่าถือ Tool หรือไม่
     for _, p in pairs(Players:GetPlayers()) do
-        -- เคลียร์ทุกคนที่มีตัวละคร รวมทั้งตัวเอง
         if p.Character then
             pcall(function()
-                re1:FireServer("AcceptedToolToServer", "ForceClearAll", p)
+                re1:FireServer("AcceptedToolToServer", "ForceClear", p)
                 re2:FireServer("ClearAllTools")
-                cleared = cleared + 1
+                clearedThisRound = clearedThisRound + 1
             end)
         end
     end
     
-    if cleared > 0 then
-        clearCount = clearCount + cleared
+    if clearedThisRound > 0 then
+        clearCount = clearCount + clearedThisRound
         CounterLabel.Text = "เคลียร์ไปแล้ว: " .. clearCount .. " ครั้ง"
     end
 end
 
--- ฟังก์ชันเริ่ม/หยุด
 local function SetActive(state)
     active = state
 
@@ -468,27 +488,27 @@ local function SetActive(state)
         
         if rate == 0 then
             -- โหมดไม่จำกัดความเร็ว
-            ModeLabel.Text = "⚡ โหมด: ไม่จำกัดความเร็ว ⚡"
-            ModeLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+            InfoLabel.Text = "⚡ โหมดไม่จำกัดความเร็ว ⚡"
+            InfoLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
             
             clearLoop = task.spawn(function()
                 while active do
-                    ClearAllPlayers()
+                    ClearItems()
                     task.wait()
                 end
             end)
         else
             -- โหมดจำกัดความเร็ว
             if rate < 1 then rate = 1 end
-            ModeLabel.Text = "📊 โหมด: " .. rate .. " ครั้ง/วินาที"
-            ModeLabel.TextColor3 = Color3.fromRGB(100, 100, 100)
+            InfoLabel.Text = "@ " .. rate .. " ครั้ง/วินาที"
+            InfoLabel.TextColor3 = Color3.fromRGB(80, 80, 80)
             
             local interval = 1 / rate
             
             clearLoop = task.spawn(function()
                 while active do
                     local startTime = tick()
-                    ClearAllPlayers()
+                    ClearItems()
                     local elapsed = tick() - startTime
                     local waitTime = interval - elapsed
                     if waitTime > 0 then
@@ -504,12 +524,11 @@ local function SetActive(state)
         CounterLabel.Text = "เคลียร์ไปแล้ว: 0 ครั้ง"
     else
         ActionBtn.Text = "▶ เริ่มเคลียร์"
-        ActionBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+        ActionBtn.BackgroundColor3 = Color3.fromRGB(13, 13, 13)
         StatusDot.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
         StatusLabel.Text = "หยุดทำงาน"
         StatusLabel.TextColor3 = Color3.fromRGB(60, 60, 60)
-        ModeLabel.Text = "โหมด: หยุดทำงาน"
-        ModeLabel.TextColor3 = Color3.fromRGB(80, 80, 80)
+        InfoLabel.Text = ""
         
         if clearLoop then
             task.cancel(clearLoop)
@@ -522,15 +541,114 @@ ActionBtn.MouseButton1Click:Connect(function()
     SetActive(not active)
 end)
 
--- ═══════════════════════════════════════════════════════════════════════════
--- TOGGLE UI
--- ═══════════════════════════════════════════════════════════════════════════
+-- ═══════════════════════════════════════════════════════════════
+-- PAGE 2 - CREDITS
+-- ═══════════════════════════════════════════════════════════════
+local creditBlock = MakeRow(Page2, 220)
+creditBlock.Size = UDim2.new(1, 0, 0, 220)
 
+NewLabel({
+    Size = UDim2.new(1, 0, 0, 45),
+    Position = UDim2.new(0, 0, 0, 15),
+    Text = "191",
+    TextSize = 32,
+    Font = Enum.Font.GothamBlack,
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    ZIndex = 8,
+    Parent = creditBlock,
+})
+
+local cdiv = NewFrame({
+    Size = UDim2.new(0.85, 0, 0, 1),
+    Position = UDim2.new(0.075, 0, 0, 65),
+    BackgroundColor3 = Color3.fromRGB(25, 25, 25),
+    BorderSizePixel = 0,
+    ZIndex = 8,
+    Parent = creditBlock,
+})
+
+local creditData = {
+    { "ผู้สร้าง", "dev191" },
+    { "เวอร์ชัน", "v3.0.0" },
+    { "Discord", "discord.gg/191" },
+    { "อัพเดท", "2025" },
+    { "โหมดพิเศษ", "ไม่จำกัดความเร็ว (ใส่ 0)" },
+    { "เคลียร์ทุกคน", "ไม่ต้องเช็คว่าถืออาวุธ" },
+}
+
+for i, item in ipairs(creditData) do
+    NewLabel({
+        Size = UDim2.new(0.5, 0, 0, 20),
+        Position = UDim2.new(0, 12, 0, 70 + (i - 1) * 26),
+        Text = item[1],
+        TextSize = 11,
+        TextColor3 = Color3.fromRGB(55, 55, 55),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 8,
+        Parent = creditBlock,
+    })
+    NewLabel({
+        Size = UDim2.new(0.5, 0, 0, 20),
+        Position = UDim2.new(0.5, -12, 0, 70 + (i - 1) * 26),
+        Text = item[2],
+        TextSize = 11,
+        TextColor3 = Color3.fromRGB(130, 130, 130),
+        TextXAlignment = Enum.TextXAlignment.Right,
+        ZIndex = 8,
+        Parent = creditBlock,
+    })
+end
+
+-- ═══════════════════════════════════════════════════════════════
+-- FOOTER
+-- ═══════════════════════════════════════════════════════════════
+local Footer = NewFrame({
+    Name = "Footer",
+    Size = UDim2.new(1, 0, 0, 32),
+    BackgroundColor3 = Color3.fromRGB(6, 6, 6),
+    BorderSizePixel = 0,
+    ZIndex = 6,
+    Parent = MainFrame,
+})
+
+NewLabel({
+    Size = UDim2.new(0.5, 0, 1, 0),
+    Position = UDim2.new(0, 12, 0, 0),
+    Text = "191 Script",
+    TextSize = 10,
+    TextColor3 = Color3.fromRGB(35, 35, 35),
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 7,
+    Parent = Footer,
+})
+
+NewLabel({
+    Size = UDim2.new(0.5, 0, 1, 0),
+    Position = UDim2.new(0.5, -12, 0, 0),
+    Text = "Unlimited Mode",
+    TextSize = 10,
+    TextColor3 = Color3.fromRGB(35, 35, 35),
+    TextXAlignment = Enum.TextXAlignment.Right,
+    ZIndex = 7,
+    Parent = Footer,
+})
+
+-- Adjust MainFrame size
+MainFrame.Size = UDim2.new(0, 350, 0, 350)
+Footer.Position = UDim2.new(0, 0, 1, -32)
+ContentArea.Size = UDim2.new(1, 0, 1, -112)
+
+-- ═══════════════════════════════════════════════════════════════
+-- TOGGLE UI
+-- ═══════════════════════════════════════════════════════════════
 local uiOpen = false
 
 local function ToggleUI()
     uiOpen = not uiOpen
     MainFrame.Visible = uiOpen
+    if uiOpen and not activeTab then
+        SwitchTab("wiper")
+    end
 end
 
 ToggleBtn.InputBegan:Connect(function(input)
@@ -545,13 +663,4 @@ UserInput.InputBegan:Connect(function(input, gpe)
     end
 end)
 
--- ═══════════════════════════════════════════════════════════════════════════
--- CHECK REMOTE EVENTS
--- ═══════════════════════════════════════════════════════════════════════════
-
-task.wait(1)
-if not re1 or not re2 then
-    warn("ไม่พบ Remote Events ที่ต้องการ")
-    ModeLabel.Text = "⚠️ ไม่พบ Remote Events"
-    ModeLabel.TextColor3 = Color3.fromRGB(255, 100, 0)
-end
+SwitchTab("wiper")
