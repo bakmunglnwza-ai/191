@@ -313,8 +313,8 @@ end
 -- ═══════════════════════════════════════════════════════════════
 -- CREATE TABS
 -- ═══════════════════════════════════════════════════════════════
-local Page1 = AddTab("wiper", "WIPER")
-local Page2 = AddTab("credits", "CREDITS")
+local Page1 = AddTab("wiper", "ระบบ")
+local Page2 = AddTab("credits", "เครดิต")
 
 -- ═══════════════════════════════════════════════════════════════
 -- PAGE 1 - WIPER SYSTEM
@@ -360,7 +360,7 @@ RateBox.Position = UDim2.new(1, -100, 0.5, -17)
 RateBox.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
 RateBox.BorderSizePixel = 0
 RateBox.Text = "0"
-RateBox.PlaceholderText = "0 = ไม่จำกัด"
+RateBox.PlaceholderText = ""
 RateBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 RateBox.Font = Enum.Font.GothamBold
 RateBox.TextSize = 14
@@ -550,7 +550,7 @@ creditBlock.Size = UDim2.new(1, 0, 0, 220)
 NewLabel({
     Size = UDim2.new(1, 0, 0, 45),
     Position = UDim2.new(0, 0, 0, 15),
-    Text = "191",
+    Text = "191 script ค้าบอ้วน",
     TextSize = 32,
     Font = Enum.Font.GothamBlack,
     TextColor3 = Color3.fromRGB(255, 255, 255),
@@ -568,12 +568,13 @@ local cdiv = NewFrame({
 })
 
 local creditData = {
-    { "ผู้สร้าง", "dev191" },
-    { "เวอร์ชัน", "v3.0.0" },
-    { "Discord", "discord.gg/191" },
-    { "อัพเดท", "2025" },
-    { "โหมดพิเศษ", "ไม่จำกัดความเร็ว (ใส่ 0)" },
-    { "เคลียร์ทุกคน", "ไม่ต้องเช็คว่าถืออาวุธ" },
+    { "ผู้สร้าง", "191" },
+    { "เวอร์ชัน", "v1.0.1" },
+    { "สถานะ", "คนทำสคริปต์โสดครับ" },
+    { "อัพเดท", "1988" },
+    { "คิดถึงคนเก่าครับ", "เหนื่อยใจครับ" },
+    { "เศร้าครับ", "แซดจัดครับ" },
+    { "เหงาครับ", "อยากมีเมีย" },
 }
 
 for i, item in ipairs(creditData) do
@@ -625,7 +626,7 @@ NewLabel({
 NewLabel({
     Size = UDim2.new(0.5, 0, 1, 0),
     Position = UDim2.new(0.5, -12, 0, 0),
-    Text = "Unlimited Mode",
+    Text = "191",
     TextSize = 10,
     TextColor3 = Color3.fromRGB(35, 35, 35),
     TextXAlignment = Enum.TextXAlignment.Right,
