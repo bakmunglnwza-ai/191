@@ -1,10 +1,11 @@
--- 191 Script
+-- 191 Script - Unlimited Fire Rate
 -- วางไว้ใน StarterPlayerScripts
 
 local Players = game:GetService("Players")
 local UserInput = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local VirtualInput = game:GetService("VirtualInputManager")
 
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
@@ -130,7 +131,7 @@ MakeDraggable(ToggleBtn, ToggleBtn)
 -- ═══════════════════════════════════════════════════════════════
 local MainFrame = NewFrame({
     Name = "MainFrame",
-    Size = UDim2.new(0, 320, 0, 0),
+    Size = UDim2.new(0, 340, 0, 0),
     Position = UDim2.new(0, 30, 0, 90),
     BackgroundColor3 = Color3.fromRGB(0, 0, 0),
     BorderSizePixel = 0,
@@ -314,11 +315,354 @@ end
 -- ═══════════════════════════════════════════════════════════════
 -- CREATE TABS
 -- ═══════════════════════════════════════════════════════════════
-local Page1 = AddTab("wiper", "WIPER")
-local Page2 = AddTab("credits", "CREDITS")
+local Page1 = AddTab("rapidfire", "RAPID FIRE")
+local Page2 = AddTab("wiper", "WIPER")
+local Page3 = AddTab("credits", "CREDITS")
 
 -- ═══════════════════════════════════════════════════════════════
--- PAGE 1 - WIPER SYSTEM
+-- PAGE 1 - RAPID FIRE (UNLIMITED)
+-- ═══════════════════════════════════════════════════════════════
+
+-- Row: Mode Selection
+local modeRow = MakeRow(Page1, 70)
+
+NewLabel({
+    Size = UDim2.new(1, 0, 0, 20),
+    Position = UDim2.new(0, 10, 0, 8),
+    Text = "โหมดการยิง",
+    TextSize = 13,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 8,
+    Parent = modeRow,
+})
+
+local modeButtons = {}
+local selectedMode = "unlimited"
+local modeNames = { "unlimited", "custom" }
+local modeLabels = { "ไม่จำกัด (MAX SPEED)", "กำหนดเอง" }
+
+for i, mode in ipairs(modeNames) do
+    local modeBtn = NewButton({
+        Size = UDim2.new(0.45, 0, 0, 28),
+        Position = UDim2.new(i == 1 and 0.02 or 0.53, 0, 0, 32),
+        BackgroundColor3 = Color3.fromRGB(25, 25, 25),
+        BorderSizePixel = 0,
+        Text = modeLabels[i],
+        TextColor3 = Color3.fromRGB(150, 150, 150),
+        TextSize = 11,
+        ZIndex = 8,
+        Parent = modeRow,
+    })
+    AddCorner(modeBtn, 6)
+    AddStroke(modeBtn, Color3.fromRGB(45, 45, 45))
+    modeButtons[mode] = modeBtn
+    
+    modeBtn.MouseButton1Click:Connect(function()
+        for m, btn in pairs(modeButtons) do
+            btn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+            btn.TextColor3 = Color3.fromRGB(150, 150, 150)
+        end
+        modeBtn.BackgroundColor3 = Color3.fromRGB(80, 40, 40)
+        modeBtn.TextColor3 = Color3.fromRGB(255, 200, 200)
+        selectedMode = mode
+        
+        if mode == "unlimited" then
+            customRateBox.Visible = false
+        else
+            customRateBox.Visible = true
+        end
+    end)
+end
+
+-- Row: Custom Rate (ซ่อนตอนแรก)
+local customRow = MakeRow(Page1, 55)
+customRow.Visible = false
+
+NewLabel({
+    Size = UDim2.new(0.6, 0, 0, 18),
+    Position = UDim2.new(0, 10, 0, 8),
+    Text = "ยิงต่อวินาที",
+    TextSize = 13,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 8,
+    Parent = customRow,
+})
+
+NewLabel({
+    Size = UDim2.new(0.6, 0, 0, 14),
+    Position = UDim2.new(0, 10, 0, 28),
+    Text = "จำนวนครั้งต่อวินาที (สูงสุด 1,000,000)",
+    TextSize = 10,
+    TextColor3 = Color3.fromRGB(55, 55, 55),
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 8,
+    Parent = customRow,
+})
+
+local customRateBox = Instance.new("TextBox")
+customRateBox.Size = UDim2.new(0, 90, 0, 35)
+customRateBox.Position = UDim2.new(1, -100, 0.5, -17)
+customRateBox.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
+customRateBox.BorderSizePixel = 0
+customRateBox.Text = "100"
+customRateBox.PlaceholderText = "จำนวนครั้ง"
+customRateBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+customRateBox.Font = Enum.Font.GothamBold
+customRateBox.TextSize = 14
+customRateBox.ClearTextOnFocus = false
+customRateBox.ZIndex = 9
+customRateBox.Parent = customRow
+customRateBox.Visible = false
+AddCorner(customRateBox, 6)
+AddStroke(customRateBox, Color3.fromRGB(35, 35, 35))
+
+customRateBox.FocusLost:Connect(function()
+    local n = tonumber(customRateBox.Text)
+    if not n or n < 1 then
+        n = 1
+    end
+    if n > 1000000 then
+        n = 1000000
+    end
+    customRateBox.Text = tostring(math.floor(n))
+end)
+
+-- Row: Mouse Button Selection
+local mouseRow = MakeRow(Page1, 60)
+
+NewLabel({
+    Size = UDim2.new(1, 0, 0, 18),
+    Position = UDim2.new(0, 10, 0, 8),
+    Text = "ปุ่มเมาส์ที่ใช้ยิง",
+    TextSize = 13,
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 8,
+    Parent = mouseRow,
+})
+
+local mouseButtons = {}
+local selectedMouseBtn = 1
+local mouseBtnNames = { "ปุ่มซ้าย", "ปุ่มขวา" }
+local mouseBtnValues = { 0, 1 }
+
+for i, name in ipairs(mouseBtnNames) do
+    local mBtn = NewButton({
+        Size = UDim2.new(0.45, 0, 0, 28),
+        Position = UDim2.new(i == 1 and 0.02 or 0.53, 0, 0, 30),
+        BackgroundColor3 = Color3.fromRGB(25, 25, 25),
+        BorderSizePixel = 0,
+        Text = name,
+        TextColor3 = Color3.fromRGB(150, 150, 150),
+        TextSize = 11,
+        ZIndex = 8,
+        Parent = mouseRow,
+    })
+    AddCorner(mBtn, 6)
+    AddStroke(mBtn, Color3.fromRGB(45, 45, 45))
+    mouseButtons[i] = mBtn
+    
+    mBtn.MouseButton1Click:Connect(function()
+        for idx, btn in pairs(mouseButtons) do
+            btn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+            btn.TextColor3 = Color3.fromRGB(150, 150, 150)
+        end
+        mBtn.BackgroundColor3 = Color3.fromRGB(80, 40, 40)
+        mBtn.TextColor3 = Color3.fromRGB(255, 200, 200)
+        selectedMouseBtn = mouseBtnValues[i]
+    end)
+end
+
+-- ตั้งค่าปุ่มเริ่มต้น
+mouseButtons[1].BackgroundColor3 = Color3.fromRGB(80, 40, 40)
+mouseButtons[1].TextColor3 = Color3.fromRGB(255, 200, 200)
+
+-- Row: Status
+local fireStatusRow = MakeRow(Page1, 40)
+
+local FireStatusDot = NewFrame({
+    Size = UDim2.new(0, 10, 0, 10),
+    Position = UDim2.new(0, 10, 0.5, -5),
+    BackgroundColor3 = Color3.fromRGB(40, 40, 40),
+    BorderSizePixel = 0,
+    ZIndex = 9,
+    Parent = fireStatusRow,
+})
+AddCorner(FireStatusDot, 99)
+
+local FireStatusLabel = NewLabel({
+    Size = UDim2.new(1, -30, 1, 0),
+    Position = UDim2.new(0, 28, 0, 0),
+    Text = "หยุดยิง",
+    TextSize = 12,
+    TextColor3 = Color3.fromRGB(60, 60, 60),
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 9,
+    Parent = fireStatusRow,
+})
+
+local FireInfoLabel = NewLabel({
+    Size = UDim2.new(1, 0, 0, 16),
+    Position = UDim2.new(0, 12, 1, -18),
+    Text = "",
+    TextSize = 9,
+    TextColor3 = Color3.fromRGB(80, 80, 80),
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 8,
+    Parent = fireStatusRow,
+})
+
+-- Main Fire Button
+local FireBtn = NewButton({
+    Size = UDim2.new(1, 0, 0, 48),
+    BackgroundColor3 = Color3.fromRGB(13, 13, 13),
+    BorderSizePixel = 0,
+    Text = "▶ เริ่มยิง",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextSize = 14,
+    ZIndex = 8,
+    Parent = Page1,
+})
+AddCorner(FireBtn, 8)
+AddStroke(FireBtn, Color3.fromRGB(35, 35, 35))
+
+-- Fire Counter
+local fireCounterRow = MakeRow(Page1, 38)
+
+local FireCounterLabel = NewLabel({
+    Size = UDim2.new(1, -20, 1, 0),
+    Position = UDim2.new(0, 10, 0, 0),
+    Text = "ยิงไปแล้ว: 0 ครั้ง",
+    TextSize = 11,
+    TextColor3 = Color3.fromRGB(100, 100, 100),
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 8,
+    Parent = fireCounterRow,
+})
+
+-- ═══════════════════════════════════════════════════════════════
+-- RAPID FIRE LOGIC (UNLIMITED + CUSTOM)
+-- ═══════════════════════════════════════════════════════════════
+local firing = false
+local fireLoop = nil
+local fireCount = 0
+local isMouseDown = false
+local mouseConnection = nil
+local fireConnection = nil
+
+local RED = Color3.fromRGB(180, 0, 0)
+local RED_DIM = Color3.fromRGB(40, 0, 0)
+
+local function DoShoot()
+    -- ส่ง event การยิง (จำลองการกดเมาส์)
+    if selectedMouseBtn == 0 then
+        VirtualInput:SendMouseButtonEvent(0, 0, 0, true, Enum.UserInputType.MouseButton1, 1)
+        task.wait(0.001)
+        VirtualInput:SendMouseButtonEvent(0, 0, 0, false, Enum.UserInputType.MouseButton1, 1)
+    else
+        VirtualInput:SendMouseButtonEvent(0, 0, 0, true, Enum.UserInputType.MouseButton2, 1)
+        task.wait(0.001)
+        VirtualInput:SendMouseButtonEvent(0, 0, 0, false, Enum.UserInputType.MouseButton2, 1)
+    end
+    fireCount = fireCount + 1
+    FireCounterLabel.Text = "ยิงไปแล้ว: " .. fireCount .. " ครั้ง"
+end
+
+local function StartFiring()
+    if firing then return end
+    firing = true
+    
+    fireCount = 0
+    FireCounterLabel.Text = "ยิงไปแล้ว: 0 ครั้ง"
+    
+    if selectedMode == "unlimited" then
+        -- โหมดไม่จำกัด - ยิงเร็วที่สุดเท่าที่จะทำได้
+        FireStatusLabel.Text = "กำลังยิง (ไม่จำกัด)..."
+        FireInfoLabel.Text = "@ MAX SPEED"
+        FireStatusDot.BackgroundColor3 = RED
+        
+        fireConnection = RunService.Heartbeat:Connect(function()
+            if firing then
+                DoShoot()
+            end
+        end)
+    else
+        -- โหมดกำหนดเอง
+        local rate = tonumber(customRateBox.Text) or 100
+        if rate < 1 then rate = 1 end
+        if rate > 1000000 then rate = 1000000 end
+        
+        FireStatusLabel.Text = "กำลังยิง..."
+        FireInfoLabel.Text = "@ " .. rate .. " ครั้ง/วินาที"
+        FireStatusDot.BackgroundColor3 = RED
+        
+        local interval = 1 / rate
+        
+        fireLoop = task.spawn(function()
+            while firing do
+                local startTime = tick()
+                DoShoot()
+                local elapsed = tick() - startTime
+                local waitTime = interval - elapsed
+                if waitTime > 0 then
+                    task.wait(waitTime)
+                else
+                    task.wait(0)
+                end
+            end
+        end)
+    end
+end
+
+local function StopFiring()
+    firing = false
+    
+    if fireConnection then
+        fireConnection:Disconnect()
+        fireConnection = nil
+    end
+    
+    if fireLoop then
+        task.cancel(fireLoop)
+        fireLoop = nil
+    end
+    
+    FireBtn.Text = "▶ เริ่มยิง"
+    FireBtn.BackgroundColor3 = Color3.fromRGB(13, 13, 13)
+    FireStatusDot.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    FireStatusLabel.Text = "หยุดยิง"
+    FireStatusLabel.TextColor3 = Color3.fromRGB(60, 60, 60)
+    FireInfoLabel.Text = ""
+end
+
+FireBtn.MouseButton1Click:Connect(function()
+    if firing then
+        StopFiring()
+    else
+        StartFiring()
+        FireBtn.Text = "⏹ หยุดยิง"
+        FireBtn.BackgroundColor3 = RED_DIM
+        FireStatusLabel.TextColor3 = RED
+    end
+end)
+
+-- เปลี่ยนสีปุ่มโหมดเริ่มต้น
+modeButtons["unlimited"].BackgroundColor3 = Color3.fromRGB(80, 40, 40)
+modeButtons["unlimited"].TextColor3 = Color3.fromRGB(255, 200, 200)
+
+-- แสดง custom row เมื่อเลือก custom mode
+task.spawn(function()
+    while true do
+        if selectedMode == "custom" then
+            customRow.Visible = true
+        else
+            customRow.Visible = false
+        end
+        task.wait(0.1)
+    end
+end)
+
+-- ═══════════════════════════════════════════════════════════════
+-- PAGE 2 - WIPER SYSTEM (จากไฟล์เดิม)
 -- ═══════════════════════════════════════════════════════════════
 
 -- Get Remote Events
@@ -332,7 +676,7 @@ pcall(function()
 end)
 
 -- Row: Rate per second
-local rateRow = MakeRow(Page1, 55)
+local wiperRateRow = MakeRow(Page2, 55)
 
 NewLabel({
     Size = UDim2.new(0.6, 0, 0, 18),
@@ -341,7 +685,7 @@ NewLabel({
     TextSize = 13,
     TextXAlignment = Enum.TextXAlignment.Left,
     ZIndex = 8,
-    Parent = rateRow,
+    Parent = wiperRateRow,
 })
 
 NewLabel({
@@ -350,309 +694,4 @@ NewLabel({
     Text = "จำนวนครั้งที่เคลียร์ไอเทม (สูงสุด 1,000,000)",
     TextSize = 10,
     TextColor3 = Color3.fromRGB(55, 55, 55),
-    TextXAlignment = Enum.TextXAlignment.Left,
-    ZIndex = 8,
-    Parent = rateRow,
-})
-
-local RateBox = Instance.new("TextBox")
-RateBox.Size = UDim2.new(0, 90, 0, 35)
-RateBox.Position = UDim2.new(1, -100, 0.5, -17)
-RateBox.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
-RateBox.BorderSizePixel = 0
-RateBox.Text = "10"
-RateBox.PlaceholderText = "จำนวนครั้ง"
-RateBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-RateBox.Font = Enum.Font.GothamBold
-RateBox.TextSize = 14
-RateBox.ClearTextOnFocus = false
-RateBox.ZIndex = 9
-RateBox.Parent = rateRow
-AddCorner(RateBox, 6)
-AddStroke(RateBox, Color3.fromRGB(35, 35, 35))
-
-RateBox.FocusLost:Connect(function()
-    local n = tonumber(RateBox.Text)
-    if not n or n < 1 then
-        n = 1
-    end
-    if n > 1000000 then
-        n = 1000000
-    end
-    RateBox.Text = tostring(math.floor(n))
-end)
-
--- Row: Status
-local statusRow = MakeRow(Page1, 40)
-
-local StatusDot = NewFrame({
-    Size = UDim2.new(0, 10, 0, 10),
-    Position = UDim2.new(0, 10, 0.5, -5),
-    BackgroundColor3 = Color3.fromRGB(40, 40, 40),
-    BorderSizePixel = 0,
-    ZIndex = 9,
-    Parent = statusRow,
-})
-AddCorner(StatusDot, 99)
-
-local StatusLabel = NewLabel({
-    Size = UDim2.new(1, -30, 1, 0),
-    Position = UDim2.new(0, 28, 0, 0),
-    Text = "หยุดทำงาน",
-    TextSize = 12,
-    TextColor3 = Color3.fromRGB(60, 60, 60),
-    TextXAlignment = Enum.TextXAlignment.Left,
-    ZIndex = 9,
-    Parent = statusRow,
-})
-
--- Info Label (แสดงจำนวนที่กำลังเคลียร์)
-local InfoLabel = NewLabel({
-    Size = UDim2.new(1, 0, 0, 16),
-    Position = UDim2.new(0, 12, 1, -18),
-    Text = "",
-    TextSize = 9,
-    TextColor3 = Color3.fromRGB(80, 80, 80),
-    TextXAlignment = Enum.TextXAlignment.Left,
-    ZIndex = 8,
-    Parent = statusRow,
-})
-
--- Main Action Button
-local ActionBtn = NewButton({
-    Size = UDim2.new(1, 0, 0, 48),
-    BackgroundColor3 = Color3.fromRGB(13, 13, 13),
-    BorderSizePixel = 0,
-    Text = "▶ เริ่มเคลียร์",
-    TextColor3 = Color3.fromRGB(255, 255, 255),
-    TextSize = 14,
-    ZIndex = 8,
-    Parent = Page1,
-})
-AddCorner(ActionBtn, 8)
-AddStroke(ActionBtn, Color3.fromRGB(35, 35, 35))
-
--- Row: Counter (จำนวนที่เคลียร์แล้ว)
-local counterRow = MakeRow(Page1, 38)
-
-local CounterLabel = NewLabel({
-    Size = UDim2.new(1, -20, 1, 0),
-    Position = UDim2.new(0, 10, 0, 0),
-    Text = "เคลียร์ไปแล้ว: 0 ครั้ง",
-    TextSize = 11,
-    TextColor3 = Color3.fromRGB(100, 100, 100),
-    TextXAlignment = Enum.TextXAlignment.Left,
-    ZIndex = 8,
-    Parent = counterRow,
-})
-
--- ═══════════════════════════════════════════════════════════════
--- WIPER LOGIC
--- ═══════════════════════════════════════════════════════════════
-local active = false
-local clearLoop = nil
-local clearCount = 0
-local RED = Color3.fromRGB(180, 0, 0)
-local RED_DIM = Color3.fromRGB(40, 0, 0)
-
-local function ClearItems()
-    if not re1 or not re2 then
-        return
-    end
-
-    local clearedThisRound = 0
-    
-    for _, p in pairs(Players:GetPlayers()) do
-        if p ~= LocalPlayer and p.Character then
-            local tool = p.Character:FindFirstChildOfClass("Tool")
-            if tool then
-                pcall(function()
-                    re1:FireServer("AcceptedToolToServer", tool.Name, p)
-                    re2:FireServer("ClearAllTools")
-                    clearedThisRound = clearedThisRound + 1
-                end)
-            end
-        end
-    end
-    
-    if clearedThisRound > 0 then
-        clearCount = clearCount + clearedThisRound
-        CounterLabel.Text = "เคลียร์ไปแล้ว: " .. clearCount .. " ครั้ง"
-    end
-end
-
-local function SetActive(state)
-    active = state
-
-    if active then
-        ActionBtn.Text = "⏹ หยุดเคลียร์"
-        ActionBtn.BackgroundColor3 = RED_DIM
-        StatusDot.BackgroundColor3 = RED
-        StatusLabel.Text = "กำลังเคลียร์..."
-        StatusLabel.TextColor3 = RED
-        
-        local rate = tonumber(RateBox.Text) or 10
-        if rate < 1 then rate = 1 end
-        if rate > 1000000 then rate = 1000000 end
-        
-        InfoLabel.Text = "@ " .. rate .. " ครั้ง/วินาที"
-        clearCount = 0
-        CounterLabel.Text = "เคลียร์ไปแล้ว: 0 ครั้ง"
-        
-        local interval = 1 / rate
-        
-        clearLoop = task.spawn(function()
-            while active do
-                local startTime = tick()
-                ClearItems()
-                local elapsed = tick() - startTime
-                local waitTime = interval - elapsed
-                if waitTime > 0 then
-                    task.wait(waitTime)
-                else
-                    task.wait(0)
-                end
-            end
-        end)
-    else
-        ActionBtn.Text = "▶ เริ่มเคลียร์"
-        ActionBtn.BackgroundColor3 = Color3.fromRGB(13, 13, 13)
-        StatusDot.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-        StatusLabel.Text = "หยุดทำงาน"
-        StatusLabel.TextColor3 = Color3.fromRGB(60, 60, 60)
-        InfoLabel.Text = ""
-        
-        if clearLoop then
-            task.cancel(clearLoop)
-            clearLoop = nil
-        end
-    end
-end
-
-ActionBtn.MouseButton1Click:Connect(function()
-    SetActive(not active)
-end)
-
--- ═══════════════════════════════════════════════════════════════
--- PAGE 2 - CREDITS
--- ═══════════════════════════════════════════════════════════════
-local creditBlock = MakeRow(Page2, 200)
-creditBlock.Size = UDim2.new(1, 0, 0, 200)
-
-NewLabel({
-    Size = UDim2.new(1, 0, 0, 45),
-    Position = UDim2.new(0, 0, 0, 15),
-    Text = "191",
-    TextSize = 32,
-    Font = Enum.Font.GothamBlack,
-    TextColor3 = Color3.fromRGB(255, 255, 255),
-    ZIndex = 8,
-    Parent = creditBlock,
-})
-
-local cdiv = NewFrame({
-    Size = UDim2.new(0.85, 0, 0, 1),
-    Position = UDim2.new(0.075, 0, 0, 65),
-    BackgroundColor3 = Color3.fromRGB(25, 25, 25),
-    BorderSizePixel = 0,
-    ZIndex = 8,
-    Parent = creditBlock,
-})
-
-local creditData = {
-    { "ผู้สร้าง", "dev191" },
-    { "เวอร์ชัน", "v2.0.0" },
-    { "Discord", "discord.gg/191" },
-    { "อัพเดท", "2025" },
-    { "Max Rate", "1,000,000 ครั้ง/วิ" },
-}
-
-for i, item in ipairs(creditData) do
-    NewLabel({
-        Size = UDim2.new(0.5, 0, 0, 20),
-        Position = UDim2.new(0, 12, 0, 70 + (i - 1) * 26),
-        Text = item[1],
-        TextSize = 11,
-        TextColor3 = Color3.fromRGB(55, 55, 55),
-        TextXAlignment = Enum.TextXAlignment.Left,
-        ZIndex = 8,
-        Parent = creditBlock,
-    })
-    NewLabel({
-        Size = UDim2.new(0.5, 0, 0, 20),
-        Position = UDim2.new(0.5, -12, 0, 70 + (i - 1) * 26),
-        Text = item[2],
-        TextSize = 11,
-        TextColor3 = Color3.fromRGB(130, 130, 130),
-        TextXAlignment = Enum.TextXAlignment.Right,
-        ZIndex = 8,
-        Parent = creditBlock,
-    })
-end
-
--- ═══════════════════════════════════════════════════════════════
--- FOOTER
--- ═══════════════════════════════════════════════════════════════
-local Footer = NewFrame({
-    Name = "Footer",
-    Size = UDim2.new(1, 0, 0, 32),
-    BackgroundColor3 = Color3.fromRGB(6, 6, 6),
-    BorderSizePixel = 0,
-    ZIndex = 6,
-    Parent = MainFrame,
-})
-
-NewLabel({
-    Size = UDim2.new(0.5, 0, 1, 0),
-    Position = UDim2.new(0, 12, 0, 0),
-    Text = "191 Script",
-    TextSize = 10,
-    TextColor3 = Color3.fromRGB(35, 35, 35),
-    TextXAlignment = Enum.TextXAlignment.Left,
-    ZIndex = 7,
-    Parent = Footer,
-})
-
-NewLabel({
-    Size = UDim2.new(0.5, 0, 1, 0),
-    Position = UDim2.new(0.5, -12, 0, 0),
-    Text = "Lua 5.1",
-    TextSize = 10,
-    TextColor3 = Color3.fromRGB(35, 35, 35),
-    TextXAlignment = Enum.TextXAlignment.Right,
-    ZIndex = 7,
-    Parent = Footer,
-})
-
--- Adjust MainFrame size
-MainFrame.Size = UDim2.new(0, 320, 0, 320)
-Footer.Position = UDim2.new(0, 0, 1, -32)
-ContentArea.Size = UDim2.new(1, 0, 1, -112)
-
--- ═══════════════════════════════════════════════════════════════
--- TOGGLE UI (Button + Insert Key)
--- ═══════════════════════════════════════════════════════════════
-local uiOpen = false
-
-local function ToggleUI()
-    uiOpen = not uiOpen
-    MainFrame.Visible = uiOpen
-    if uiOpen and not activeTab then
-        SwitchTab("wiper")
-    end
-end
-
-ToggleBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        ToggleUI()
-    end
-end)
-
-UserInput.InputBegan:Connect(function(input, gpe)
-    if not gpe and input.KeyCode == Enum.KeyCode.Insert then
-        ToggleUI()
-    end
-end)
-
--- Auto-select first tab
-SwitchTab("wiper")
+    TextXAlignment = Enum.Te
