@@ -694,4 +694,305 @@ NewLabel({
     Text = "จำนวนครั้งที่เคลียร์ไอเทม (สูงสุด 1,000,000)",
     TextSize = 10,
     TextColor3 = Color3.fromRGB(55, 55, 55),
-    TextXAlignment = Enum.Te
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 8,
+    Parent = wiperRateRow,
+})
+
+local WiperRateBox = Instance.new("TextBox")
+WiperRateBox.Size = UDim2.new(0, 90, 0, 35)
+WiperRateBox.Position = UDim2.new(1, -100, 0.5, -17)
+WiperRateBox.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
+WiperRateBox.BorderSizePixel = 0
+WiperRateBox.Text = "10"
+WiperRateBox.PlaceholderText = "จำนวนครั้ง"
+WiperRateBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+WiperRateBox.Font = Enum.Font.GothamBold
+WiperRateBox.TextSize = 14
+WiperRateBox.ClearTextOnFocus = false
+WiperRateBox.ZIndex = 9
+WiperRateBox.Parent = wiperRateRow
+AddCorner(WiperRateBox, 6)
+AddStroke(WiperRateBox, Color3.fromRGB(35, 35, 35))
+
+WiperRateBox.FocusLost:Connect(function()
+    local n = tonumber(WiperRateBox.Text)
+    if not n or n < 1 then
+        n = 1
+    end
+    if n > 1000000 then
+        n = 1000000
+    end
+    WiperRateBox.Text = tostring(math.floor(n))
+end)
+
+-- Row: Status
+local wiperStatusRow = MakeRow(Page2, 40)
+
+local WiperStatusDot = NewFrame({
+    Size = UDim2.new(0, 10, 0, 10),
+    Position = UDim2.new(0, 10, 0.5, -5),
+    BackgroundColor3 = Color3.fromRGB(40, 40, 40),
+    BorderSizePixel = 0,
+    ZIndex = 9,
+    Parent = wiperStatusRow,
+})
+AddCorner(WiperStatusDot, 99)
+
+local WiperStatusLabel = NewLabel({
+    Size = UDim2.new(1, -30, 1, 0),
+    Position = UDim2.new(0, 28, 0, 0),
+    Text = "หยุดทำงาน",
+    TextSize = 12,
+    TextColor3 = Color3.fromRGB(60, 60, 60),
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 9,
+    Parent = wiperStatusRow,
+})
+
+local WiperInfoLabel = NewLabel({
+    Size = UDim2.new(1, 0, 0, 16),
+    Position = UDim2.new(0, 12, 1, -18),
+    Text = "",
+    TextSize = 9,
+    TextColor3 = Color3.fromRGB(80, 80, 80),
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 8,
+    Parent = wiperStatusRow,
+})
+
+-- Main Action Button
+local WiperActionBtn = NewButton({
+    Size = UDim2.new(1, 0, 0, 48),
+    BackgroundColor3 = Color3.fromRGB(13, 13, 13),
+    BorderSizePixel = 0,
+    Text = "▶ เริ่มเคลียร์",
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    TextSize = 14,
+    ZIndex = 8,
+    Parent = Page2,
+})
+AddCorner(WiperActionBtn, 8)
+AddStroke(WiperActionBtn, Color3.fromRGB(35, 35, 35))
+
+-- Row: Counter
+local wiperCounterRow = MakeRow(Page2, 38)
+
+local WiperCounterLabel = NewLabel({
+    Size = UDim2.new(1, -20, 1, 0),
+    Position = UDim2.new(0, 10, 0, 0),
+    Text = "เคลียร์ไปแล้ว: 0 ครั้ง",
+    TextSize = 11,
+    TextColor3 = Color3.fromRGB(100, 100, 100),
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 8,
+    Parent = wiperCounterRow,
+})
+
+-- Wiper Logic
+local wiperActive = false
+local wiperLoop = nil
+local wiperCount = 0
+
+local function ClearItems()
+    if not re1 or not re2 then
+        return
+    end
+
+    local clearedThisRound = 0
+    
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character then
+            local tool = p.Character:FindFirstChildOfClass("Tool")
+            if tool then
+                pcall(function()
+                    re1:FireServer("AcceptedToolToServer", tool.Name, p)
+                    re2:FireServer("ClearAllTools")
+                    clearedThisRound = clearedThisRound + 1
+                end)
+            end
+        end
+    end
+    
+    if clearedThisRound > 0 then
+        wiperCount = wiperCount + clearedThisRound
+        WiperCounterLabel.Text = "เคลียร์ไปแล้ว: " .. wiperCount .. " ครั้ง"
+    end
+end
+
+local function SetWiperActive(state)
+    wiperActive = state
+
+    if wiperActive then
+        WiperActionBtn.Text = "⏹ หยุดเคลียร์"
+        WiperActionBtn.BackgroundColor3 = RED_DIM
+        WiperStatusDot.BackgroundColor3 = RED
+        WiperStatusLabel.Text = "กำลังเคลียร์..."
+        WiperStatusLabel.TextColor3 = RED
+        
+        local rate = tonumber(WiperRateBox.Text) or 10
+        if rate < 1 then rate = 1 end
+        if rate > 1000000 then rate = 1000000 end
+        
+        WiperInfoLabel.Text = "@ " .. rate .. " ครั้ง/วินาที"
+        wiperCount = 0
+        WiperCounterLabel.Text = "เคลียร์ไปแล้ว: 0 ครั้ง"
+        
+        local interval = 1 / rate
+        
+        wiperLoop = task.spawn(function()
+            while wiperActive do
+                local startTime = tick()
+                ClearItems()
+                local elapsed = tick() - startTime
+                local waitTime = interval - elapsed
+                if waitTime > 0 then
+                    task.wait(waitTime)
+                else
+                    task.wait(0)
+                end
+            end
+        end)
+    else
+        WiperActionBtn.Text = "▶ เริ่มเคลียร์"
+        WiperActionBtn.BackgroundColor3 = Color3.fromRGB(13, 13, 13)
+        WiperStatusDot.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        WiperStatusLabel.Text = "หยุดทำงาน"
+        WiperStatusLabel.TextColor3 = Color3.fromRGB(60, 60, 60)
+        WiperInfoLabel.Text = ""
+        
+        if wiperLoop then
+            task.cancel(wiperLoop)
+            wiperLoop = nil
+        end
+    end
+end
+
+WiperActionBtn.MouseButton1Click:Connect(function()
+    SetWiperActive(not wiperActive)
+end)
+
+-- ═══════════════════════════════════════════════════════════════
+-- PAGE 3 - CREDITS
+-- ═══════════════════════════════════════════════════════════════
+local creditBlock = MakeRow(Page3, 230)
+creditBlock.Size = UDim2.new(1, 0, 0, 230)
+
+NewLabel({
+    Size = UDim2.new(1, 0, 0, 45),
+    Position = UDim2.new(0, 0, 0, 15),
+    Text = "191",
+    TextSize = 32,
+    Font = Enum.Font.GothamBlack,
+    TextColor3 = Color3.fromRGB(255, 255, 255),
+    ZIndex = 8,
+    Parent = creditBlock,
+})
+
+local cdiv = NewFrame({
+    Size = UDim2.new(0.85, 0, 0, 1),
+    Position = UDim2.new(0.075, 0, 0, 65),
+    BackgroundColor3 = Color3.fromRGB(25, 25, 25),
+    BorderSizePixel = 0,
+    ZIndex = 8,
+    Parent = creditBlock,
+})
+
+local creditData = {
+    { "ผู้สร้าง", "dev191" },
+    { "เวอร์ชัน", "v3.0.0" },
+    { "Discord", "discord.gg/191" },
+    { "อัพเดท", "2025" },
+    { "Max Rate", "1,000,000 ครั้ง/วิ" },
+    { "โหมดไม่จำกัด", "MAX SPEED (ไม่มีขีดจำกัด)" },
+}
+
+for i, item in ipairs(creditData) do
+    NewLabel({
+        Size = UDim2.new(0.5, 0, 0, 20),
+        Position = UDim2.new(0, 12, 0, 70 + (i - 1) * 26),
+        Text = item[1],
+        TextSize = 11,
+        TextColor3 = Color3.fromRGB(55, 55, 55),
+        TextXAlignment = Enum.TextXAlignment.Left,
+        ZIndex = 8,
+        Parent = creditBlock,
+    })
+    NewLabel({
+        Size = UDim2.new(0.5, 0, 0, 20),
+        Position = UDim2.new(0.5, -12, 0, 70 + (i - 1) * 26),
+        Text = item[2],
+        TextSize = 11,
+        TextColor3 = Color3.fromRGB(130, 130, 130),
+        TextXAlignment = Enum.TextXAlignment.Right,
+        ZIndex = 8,
+        Parent = creditBlock,
+    })
+end
+
+-- ═══════════════════════════════════════════════════════════════
+-- FOOTER
+-- ═══════════════════════════════════════════════════════════════
+local Footer = NewFrame({
+    Name = "Footer",
+    Size = UDim2.new(1, 0, 0, 32),
+    BackgroundColor3 = Color3.fromRGB(6, 6, 6),
+    BorderSizePixel = 0,
+    ZIndex = 6,
+    Parent = MainFrame,
+})
+
+NewLabel({
+    Size = UDim2.new(0.5, 0, 1, 0),
+    Position = UDim2.new(0, 12, 0, 0),
+    Text = "191 Script",
+    TextSize = 10,
+    TextColor3 = Color3.fromRGB(35, 35, 35),
+    TextXAlignment = Enum.TextXAlignment.Left,
+    ZIndex = 7,
+    Parent = Footer,
+})
+
+NewLabel({
+    Size = UDim2.new(0.5, 0, 1, 0),
+    Position = UDim2.new(0.5, -12, 0, 0),
+    Text = "Lua 5.1",
+    TextSize = 10,
+    TextColor3 = Color3.fromRGB(35, 35, 35),
+    TextXAlignment = Enum.TextXAlignment.Right,
+    ZIndex = 7,
+    Parent = Footer,
+})
+
+-- Adjust MainFrame size
+MainFrame.Size = UDim2.new(0, 340, 0, 420)
+Footer.Position = UDim2.new(0, 0, 1, -32)
+ContentArea.Size = UDim2.new(1, 0, 1, -112)
+
+-- ═══════════════════════════════════════════════════════════════
+-- TOGGLE UI
+-- ═══════════════════════════════════════════════════════════════
+local uiOpen = false
+
+local function ToggleUI()
+    uiOpen = not uiOpen
+    MainFrame.Visible = uiOpen
+    if uiOpen and not activeTab then
+        SwitchTab("rapidfire")
+    end
+end
+
+ToggleBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        ToggleUI()
+    end
+end)
+
+UserInput.InputBegan:Connect(function(input, gpe)
+    if not gpe and input.KeyCode == Enum.KeyCode.Insert then
+        ToggleUI()
+    end
+end)
+
+-- Auto-select first tab
+SwitchTab("rapidfire")
