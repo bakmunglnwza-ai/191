@@ -1,4 +1,4 @@
--- สคริปของ 191 ค้าบเบบี๋ (รูปแบบไอดีหลอก &Junk=00 ไอดีจริง)
+-- สคริปของ 191 ค้าบเบบี๋ (ไอดีจริงไม่ต้องแปลงอะไร ใส่ท้าย =00 ตรงๆ)
 -- LocalScript ใส่ใน StarterPlayerScripts
 
 local Players = game:GetService("\80\108\97\121\101\114\115")
@@ -27,7 +27,7 @@ local _reB = _rs:WaitForChild(D[3]):WaitForChild(D[14])
 local _fakeId = "83260119948695"
 
 -- ===============================
--- URL Encode
+-- URL Encode (ใช้เฉพาะ fake id ในส่วน &%69%64=00)
 -- ===============================
 local function _urlEncode(str)
     local _hx = "0123456789ABCDEF"
@@ -75,35 +75,44 @@ local function _wrap()
 end
 
 -- ===============================
--- แปลง ID ที่กรอกเป็นเลขฐานสิบ (decimal)
+-- ฟังก์ชันดึง raw string จาก input (ไม่แปลงใดๆ)
 -- ===============================
-local function getDecimalId(input)
-    input = string.gsub(input, "^%s*(.-)%s*$", "%1")
-    if input == "" then return nil end
-    if string.sub(input, 1, 2):lower() == "0x" then
-        return tonumber(input)
-    else
-        return tonumber(input)
-    end
+local function getRawId(input)
+    return string.gsub(input, "^%s*(.-)%s*$", "%1")
 end
 
 -- ===============================
--- สร้าง Payload แบบ ไอดีหลอก &Junk=00 ไอดีจริง
+-- สร้าง Payload แบบ ไอดีหลอก + Junk + &%69%64=00<fake_encoded> ซ้ำ + &%69=00<real_raw>
 -- ===============================
-local function buildPayload(realIdDecimal)
-    local realIdStr = tostring(realIdDecimal)
+local function buildPayload(rawRealId)
     local fakeIdEncoded = _urlEncode(_fakeId)
-    local realIdEncoded = _urlEncode(realIdStr)
     
-    -- สร้างส่วน &%69%64=00<fake_id_encoded> ซ้ำๆ หลายครั้ง
+    -- สร้างส่วน &%69%64=00<fake_encoded> ซ้ำ 5 รอบ
     local fakeIdBlock = ""
-    for i = 1, 5 do  -- ซ้ำ 5 ครั้ง
+    for i = 1, 5 do
         fakeIdBlock = fakeIdBlock .. "&%69%64=00" .. fakeIdEncoded
     end
     
-    -- payload ตามรูปแบบ: rbxassetid://<fake_id> + junk + fakeIdBlock + &%69=00<real_id_encoded>
-    local payload = "rbxassetid://" .. _fakeId .. _wrap() .. fakeIdBlock .. "&%69=00" .. realIdEncoded
+    -- payload: rbxassetid://<fakeId> + junk + fakeIdBlock + &%69=00<real_raw>
+    local payload = "rbxassetid://" .. _fakeId .. _wrap() .. fakeIdBlock .. "&%69=00" .. rawRealId
     return payload
+end
+
+-- ===============================
+-- Preview ชื่อเพลง (แปลง id เป็นตัวเลขเท่าที่จำเป็น)
+-- ===============================
+local function tryGetProductInfo(idString)
+    -- พยายามแปลงเป็นตัวเลข (รองรับทั้ง decimal และ hex)
+    local num = tonumber(idString)
+    if not num and string.sub(idString, 1, 2):lower() == "0x" then
+        num = tonumber(idString)
+    end
+    if not num then
+        return nil, "Invalid ID format"
+    end
+    return pcall(function()
+        return MarketplaceService:GetProductInfo(num)
+    end)
 end
 
 -- ===============================
@@ -186,7 +195,7 @@ local _cbs = Instance.new("\85\73\83\116\114\111\107\101",_cb)
 _cbs.Color = Color3.fromRGB(40,40,80)
 _cbs.Thickness = 1
 
--- Song Name
+-- Song Name (preview)
 local _sl = Instance.new("\84\101\120\116\76\97\98\101\108",_fr)
 _sl.Size = UDim2.new(1,-24,0,28)
 _sl.Position = UDim2.new(0,12,0,52)
@@ -221,7 +230,7 @@ _ib.Position = UDim2.new(0,12,0,104)
 _ib.BackgroundColor3 = Color3.fromRGB(5,5,12)
 _ib.BorderSizePixel = 0
 _ib.Text = ""
-_ib.PlaceholderText = "0x00000000000000"
+_ib.PlaceholderText = "Sound ID (any format)"
 _ib.PlaceholderColor3 = Color3.fromRGB(25,25,50)
 _ib.TextColor3 = Color3.fromRGB(100,100,200)
 _ib.TextSize = 13
@@ -267,28 +276,20 @@ UserInputService.InputEnded:Connect(function(i)
 end)
 
 -- ===============================
--- Preview ชื่อเพลง
+-- Preview ชื่อเพลง (พยายามแปลงเป็นตัวเลขเท่าที่จะทำได้)
 -- ===============================
 _ib:GetPropertyChangedSignal("\84\101\120\116"):Connect(function()
-    local id = _ib.Text
-    if #id > 5 then
+    local raw = getRawId(_ib.Text)
+    if #raw > 3 then
         _sl.Text = "⏳  FETCHING..."
         _sl.TextColor3 = Color3.fromRGB(60,60,120)
         task.spawn(function()
-            local decimalId = getDecimalId(id)
-            if not decimalId then
-                _sl.Text = "◈  INVALID ID"
-                _sl.TextColor3 = Color3.fromRGB(160,40,40)
-                return
-            end
-            local ok, info = pcall(function()
-                return MarketplaceService:GetProductInfo(decimalId)
-            end)
+            local ok, info = tryGetProductInfo(raw)
             if ok and info then
                 _sl.Text = "◈  " .. (info.Name or "UNKNOWN")
                 _sl.TextColor3 = Color3.fromRGB(40,180,100)
             else
-                _sl.Text = "◈  NOT FOUND"
+                _sl.Text = "◈  PREVIEW UNAVAILABLE"
                 _sl.TextColor3 = Color3.fromRGB(160,40,40)
             end
         end)
@@ -299,11 +300,11 @@ _ib:GetPropertyChangedSignal("\84\101\120\116"):Connect(function()
 end)
 
 -- ===============================
--- เล่นเพลง (ส่ง Payload แบบไอดีหลอก &Junk=00 ไอดีจริง)
+-- เล่นเพลง (ส่ง payload โดยไอดีจริงไม่ถูกแปลงใดๆ)
 -- ===============================
 local function playMusic()
-    local id = _ib.Text
-    if id == "" then
+    local rawId = getRawId(_ib.Text)
+    if rawId == "" then
         _pb.Text = "⚠  NO INPUT"
         _pb.TextColor3 = Color3.fromRGB(180,40,40)
         task.wait(1.5)
@@ -312,17 +313,8 @@ local function playMusic()
         return
     end
 
-    local decimalId = getDecimalId(id)
-    if not decimalId then
-        _pb.Text = "⚠  INVALID ID"
-        _pb.TextColor3 = Color3.fromRGB(180,40,40)
-        task.wait(1.5)
-        _pb.Text = "▶  EXECUTE"
-        _pb.TextColor3 = Color3.fromRGB(80,80,160)
-        return
-    end
-
-    local payload = buildPayload(decimalId)
+    -- สร้าง payload โดยใส่ rawId ต่อท้าย &%69=00 โดยตรง (ไม่ encode, ไม่แปลง)
+    local payload = buildPayload(rawId)
     _reB:FireServer(D[15], payload, true)
 
     _pb.Text = "■  PLAYING..."
