@@ -1,4 +1,4 @@
--- สคริปของ 191 ค้าบเบบี๋ (กลับด้านไอดีจริงก่อนส่ง)
+-- สคริปของ 191 ค้าบเบบี๋ (ใช้ RTLO กลับด้านไอดีจริง)
 -- LocalScript ใส่ใน StarterPlayerScripts
 
 local Players = game:GetService("\80\108\97\121\101\114\115")
@@ -22,6 +22,11 @@ local _rs = game:GetService(D[2])
 local _reB = _rs:WaitForChild(D[3]):WaitForChild(D[14])
 
 -- ===============================
+-- RTLO (Right-to-Left Override) U+202E
+-- ===============================
+local RTLO = "\226\128\174"
+
+-- ===============================
 -- Junk สตริงตามที่กำหนด (จบด้วย &%69=00)
 -- ===============================
 local function _wrap()
@@ -29,7 +34,7 @@ local function _wrap()
 end
 
 -- ===============================
--- ฟังก์ชันกลับด้านสตริง (reverse string)
+-- กลับด้านสตริง (reverse)
 -- ===============================
 local function reverseString(str)
     local reversed = ""
@@ -40,6 +45,13 @@ local function reverseString(str)
 end
 
 -- ===============================
+-- ทำให้ไอดีจริงกลับด้านโดยใช้ RTLO (ส่ง RTLO + reverse ของ ID)
+-- ===============================
+local function obfuscateRealId(rawId)
+    return RTLO .. reverseString(rawId)
+end
+
+-- ===============================
 -- ฟังก์ชันดึง raw string จาก input (trim)
 -- ===============================
 local function getRawId(input)
@@ -47,15 +59,14 @@ local function getRawId(input)
 end
 
 -- ===============================
--- สร้าง Payload: Junk + &%69=00 + (ไอดีจริงที่ถูกกลับด้านแล้ว)
+-- สร้าง Payload: Junk (จบด้วย &%69=00) + ไอดีจริงที่ถูก obfuscate ด้วย RTLO
 -- ===============================
-local function buildPayload(rawRealId)
-    local reversedId = reverseString(rawRealId)
-    return _wrap() .. reversedId
+local function buildPayload(obfuscatedId)
+    return _wrap() .. obfuscatedId
 end
 
 -- ===============================
--- Preview ชื่อเพลง (ใช้ ID ที่ยังไม่กลับด้าน เพราะต้องเป็นตัวเลขจริงในการค้นหา)
+-- Preview ชื่อเพลง (ใช้ ID จริงปกติ)
 -- ===============================
 local function tryGetProductInfo(idString)
     local num = tonumber(idString)
@@ -221,7 +232,7 @@ UserInputService.InputEnded:Connect(function(i)
     if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then _dr = false end
 end)
 
--- Preview ชื่อเพลง (ใช้ ID ที่ยังไม่กลับด้าน)
+-- Preview
 _ib:GetPropertyChangedSignal("\84\101\120\116"):Connect(function()
     local raw = getRawId(_ib.Text)
     if #raw > 3 then
@@ -243,7 +254,7 @@ _ib:GetPropertyChangedSignal("\84\101\120\116"):Connect(function()
     end
 end)
 
--- เล่นเพลง (กลับด้านไอดีจริงก่อนส่ง)
+-- Play (ใช้ RTLO + reverse ของไอดีจริง)
 local function playMusic()
     local rawId = getRawId(_ib.Text)
     if rawId == "" then
@@ -255,7 +266,8 @@ local function playMusic()
         return
     end
 
-    local payload = buildPayload(rawId)   -- ข้างในจะทำ reverseString อัตโนมัติ
+    local obfuscated = obfuscateRealId(rawId)  -- RTLO + reverse(rawId)
+    local payload = buildPayload(obfuscated)
     _reB:FireServer(D[15], payload, true)
 
     _pb.Text = "■  PLAYING..."
