@@ -1,15 +1,9 @@
--- สคริปของ 191 ค้าบเบบี๋ (ระบบเปิดเพลงแบบเติม & ต่อท้าย ID)
--- LocalScript ใส่ใน StarterPlayerScripts
-
 local Players = game:GetService("\80\108\97\121\101\114\115")
 local TweenService = game:GetService("\84\119\101\101\110\83\101\114\118\105\99\101")
 local UserInputService = game:GetService("\85\115\101\114\73\110\112\117\116\83\101\114\118\105\99\101")
 local MarketplaceService = game:GetService("\77\97\114\107\101\116\112\108\97\99\101\83\101\114\118\105\99\101")
 local player = Players.LocalPlayer
 
--- ===============================
--- Remotes (เฉพาะ BoomBox)
--- ===============================
 local D = {}
 D[2]  = "\82\101\112\108\105\99\97\116\101\100\83\116\111\114\97\103\101"
 D[3]  = "\82\69"
@@ -28,16 +22,10 @@ local function getRawId(input)
     return string.gsub(input, "^%s*(.-)%s*$", "%1")
 end
 
--- ===============================
--- สร้าง Payload: ไอดีที่กรอก + "&"
--- ===============================
 local function buildPayload(rawId)
-    return rawId .. "&"
+    return rawId .. "&                 [[ทำให้ดนตรีไม่ขึ้นโดย 191]]"
 end
 
--- ===============================
--- Preview ชื่อเพลง (แปลง ID เป็นตัวเลขเท่าที่จำเป็น)
--- ===============================
 local function tryGetProductInfo(idString)
     local num = tonumber(idString)
     if not num and string.sub(idString, 1, 2):lower() == "0x" then
@@ -51,9 +39,6 @@ local function tryGetProductInfo(idString)
     end)
 end
 
--- ===============================
--- ScreenGui
--- ===============================
 local _g = Instance.new("\83\99\114\101\101\110\71\117\105")
 _g.Name = "\77\117\115\105\99\80\97\110\101\108"
 _g.ResetOnSpawn = false
@@ -211,9 +196,6 @@ UserInputService.InputEnded:Connect(function(i)
     if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then _dr = false end
 end)
 
--- ===============================
--- Preview ชื่อเพลง
--- ===============================
 _ib:GetPropertyChangedSignal("\84\101\120\116"):Connect(function()
     local raw = getRawId(_ib.Text)
     if #raw > 3 then
@@ -267,9 +249,7 @@ end
 
 _pb.MouseButton1Click:Connect(playMusic)
 
--- ===============================
--- Close
--- ===============================
+
 _cb.MouseButton1Click:Connect(function()
     _cb.TextColor3 = Color3.fromRGB(255,60,60)
     TweenService:Create(_fr, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
