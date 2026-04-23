@@ -29,13 +29,12 @@ local function MasterChat(msg)
     end)
 end
 
--- ฟังก์ชันสร้างป้าย (จะถูกเรียกใช้เมื่อ Verified แล้วเท่านั้น)
+-- ฟังก์ชันสร้างป้าย
 local function ApplyTag(char, text, isVerified)
     local head = char:WaitForChild("Head", 10)
     if not head then return end
     if head:FindFirstChild("Tag191") then head.Tag191:Destroy() end
     
-    -- สร้างป้ายเฉพาะตอนที่เป็น Verified หรือเป็นตัว Admin เอง
     if isVerified or IsAdmin(Players:GetPlayerFromCharacter(char).UserId) then
         local bgui = Instance.new("BillboardGui", head)
         bgui.Name = "Tag191"; bgui.Size = UDim2.new(0,100,0,50); bgui.StudsOffset = Vector3.new(0,3,0); bgui.AlwaysOnTop = true
@@ -46,10 +45,10 @@ local function ApplyTag(char, text, isVerified)
         local l = Instance.new("TextLabel", frame); l.Size = UDim2.new(1,0,1,0); l.BackgroundTransparency = 1; l.Text = text; l.TextSize = 14; l.Font = Enum.Font.GothamBold
         
         if isVerified then
-            l.TextColor3 = Color3.fromRGB(0, 255, 127) -- สีเขียว
+            l.TextColor3 = Color3.fromRGB(0, 255, 127)
             l.Text = "[Verified] 191-ACTIVE"
         else
-            l.TextColor3 = Color3.new(1,1,1) -- สีขาว (สำหรับแอดมิน)
+            l.TextColor3 = Color3.new(1,1,1)
             l.Text = text
         end
     end
@@ -59,7 +58,7 @@ end
 local function ProcessChat(message, senderId)
     local msg = message:lower()
     
-    -- ระบบรายงานตัว (แอดมินสั่ง !Verified191 ลูกน้องตอบ !191)
+    -- ระบบรายงานตัว
     if msg == "!verified191" and not IsAdmin(LocalPlayer.UserId) then
         MasterChat("!191")
     end
@@ -68,7 +67,7 @@ local function ProcessChat(message, senderId)
         local sender = Players:GetPlayerByUserId(senderId)
         if sender and sender.Character then
             VerifiedUsers[senderId] = true
-            ApplyTag(sender.Character, "191-ACTIVE", true) -- แปะป้ายเขียวเมื่อรายงานตัวสำเร็จ
+            ApplyTag(sender.Character, "191-ACTIVE", true)
         end
     end
 
@@ -82,11 +81,83 @@ local function ProcessChat(message, senderId)
             local hrp = char and char:FindFirstChild("HumanoidRootPart")
             if not (char and hum and hrp) then return end
 
-            if cmd == "!kill" then hum.Health = 0
-            elseif cmd == "!fling" then
-                local bV = Instance.new("BodyVelocity", hrp); bV.Velocity = Vector3.new(500000, 500000, 500000); bV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-                local bA = Instance.new("BodyAngularVelocity", hrp); bA.AngularVelocity = Vector3.new(10000, 10000, 10000); bA.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-                hum.PlatformStand = true; task.wait(0.5); char:BreakJoints()
+            if cmd == "!kill" or cmd == "!ฆ่า" then 
+                hum.Health = 0
+                
+            elseif cmd == "!fling" or cmd == "!เหวี่ยง" then
+                local bV = Instance.new("BodyVelocity", hrp); 
+                bV.Velocity = Vector3.new(500000, 500000, 500000); 
+                bV.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+                local bA = Instance.new("BodyAngularVelocity", hrp); 
+                bA.AngularVelocity = Vector3.new(10000, 10000, 10000); 
+                bA.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+                hum.PlatformStand = true; 
+                task.wait(0.5); 
+                char:BreakJoints()
+                
+            elseif cmd == "!kick" or cmd == "!เตะ" then
+                LocalPlayer:Kick("คุณถูกเตะโดยแอดมิน | Kicked by Admin")
+                
+            elseif cmd == "!tp" or cmd == "!วาป" then
+                -- วาปไปหาแอดมินที่พิมพ์คำสั่ง
+                local admin = Players:GetPlayerByUserId(senderId)
+                if admin and admin.Character and admin.Character:FindFirstChild("HumanoidRootPart") then
+                    hrp.CFrame = admin.Character.HumanoidRootPart.CFrame + Vector3.new(0, 3, 0)
+                end
+                
+            elseif cmd == "!freeze" or cmd == "!แข็ง" then
+                hum.PlatformStand = true
+                hum.WalkSpeed = 0
+                hum.JumpPower = 0
+                
+            elseif cmd == "!unfreeze" or cmd == "!หายแข็ง" then
+                hum.PlatformStand = false
+                hum.WalkSpeed = 16
+                hum.JumpPower = 50
+                
+            elseif cmd == "!boom" or cmd == "!ระเบิด" then
+                local explosion = Instance.new("Explosion", hrp)
+                explosion.BlastRadius = 10
+                explosion.BlastPressure = 500000
+                explosion.Position = hrp.Position
+                
+            elseif cmd == "!jail" or cmd == "!ขัง" then
+                -- สร้างกรอบขัง (กล่องสี่เหลี่ยม)
+                local jail = Instance.new("Part")
+                jail.Name = "Jail191"
+                jail.Size = Vector3.new(10, 10, 10)
+                jail.CFrame = hrp.CFrame
+                jail.Anchored = true
+                jail.Transparency = 0.5
+                jail.Color = Color3.fromRGB(255, 0, 0)
+                jail.Material = Enum.Material.Neon
+                jail.Parent = workspace
+                
+                -- สร้างหลังคา
+                local roof = Instance.new("Part")
+                roof.Size = Vector3.new(10, 1, 10)
+                roof.CFrame = hrp.CFrame + Vector3.new(0, 5, 0)
+                roof.Anchored = true
+                roof.Transparency = 0.5
+                roof.Color = Color3.fromRGB(255, 0, 0)
+                roof.Material = Enum.Material.Neon
+                roof.Parent = workspace
+                
+                -- สร้างพื้น
+                local floor = Instance.new("Part")
+                floor.Size = Vector3.new(10, 1, 10)
+                floor.CFrame = hrp.CFrame - Vector3.new(0, 5, 0)
+                floor.Anchored = true
+                floor.Transparency = 0.5
+                floor.Color = Color3.fromRGB(255, 0, 0)
+                floor.Material = Enum.Material.Neon
+                floor.Parent = workspace
+                
+                -- ลบกรอบขังหลัง 30 วิ
+                task.wait(30)
+                jail:Destroy()
+                roof:Destroy()
+                floor:Destroy()
             end
         end
     end
@@ -102,7 +173,6 @@ end
 
 -- [[ ส่วนของแอดมิน (UI) ]]
 if IsAdmin(LocalPlayer.UserId) then
-    -- แปะป้ายเฉพาะกลุ่มแอดมินด้วยกันเองก่อน
     local function CheckAdmins()
         for _, p in pairs(Players:GetPlayers()) do
             if IsAdmin(p.UserId) and p.Character then
@@ -115,7 +185,7 @@ if IsAdmin(LocalPlayer.UserId) then
 
     -- โหลด Rayfield UI
     local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
-    local Window = Rayfield:CreateWindow({ Name = "191 MASTER (No Tags Mode)" })
+    local Window = Rayfield:CreateWindow({ Name = "191 MASTER" })
     local MainTab = Window:CreateTab("Control", 4483362458)
     
     MainTab:CreateButton({ 
@@ -133,10 +203,28 @@ if IsAdmin(LocalPlayer.UserId) then
     end})
 
     MainTab:CreateSection("Commands")
-    local function MasterSend(cmd) if Selected ~= "" then MasterChat(cmd.." "..Selected) end end
-    local cmds = {"!kill", "!fling", "!boom", "!freeze"}
+    
+    local function MasterSend(cmd) 
+        if Selected ~= "" then 
+            MasterChat(cmd.." "..Selected) 
+        end
+    end
+    
+    local cmds = {
+        {"!kill", "KILL (ฆ่า)"},
+        {"!kick", "KICK (เตะ)"},
+        {"!tp", "TP (วาปมาหา)"},
+        {"!freeze", "FREEZE (แช่แข็ง)"},
+        {"!unfreeze", "UNFREEZE (หายแข็ง)"},
+        {"!boom", "BOOM (ระเบิด)"},
+        {"!fling", "FLING (เหวี่ยง)"},
+        {"!jail", "JAIL (ขัง)"}
+    }
+    
     for _, v in pairs(cmds) do
-        MainTab:CreateButton({ Name = v:sub(2):upper(), Callback = function() MasterSend(v) end })
+        MainTab:CreateButton({ 
+            Name = v[2], 
+            Callback = function() MasterSend(v[1]) end 
+        })
     end
 end
-
