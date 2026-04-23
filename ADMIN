@@ -56,13 +56,11 @@ end
 
 -- ฟังก์ชันเช็คชื่อเป้าหมายแบบปลอดภัย
 local function IsTarget(args, playerName)
-    -- รวม args ที่เหลือ (เผื่อชื่อมีช่องว่าง)
     local targetName = ""
     for i = 2, #args do
         if i > 2 then targetName = targetName .. " " end
         targetName = targetName .. args[i]
     end
-    -- เช็คแบบตรงตัว (case-insensitive)
     return playerName:lower() == targetName:lower()
 end
 
@@ -86,7 +84,7 @@ local function ProcessChat(message, senderId)
 
     -- ระบบคำสั่งแอดมิน
     if IsAdmin(senderId) then
-        local args = string.split(message, " ") -- ใช้ message ต้นฉบับ ไม่ใช้ lower
+        local args = string.split(message, " ")
         if #args >= 2 then
             local cmd = args[1]:lower()
             
@@ -138,10 +136,8 @@ local function ProcessChat(message, senderId)
                 explosion.Position = hrp.Position
                 
             elseif cmd == "!jail" or cmd == "!ขัง" then
-                -- สร้างกรอบขัง
                 local jailParts = {}
                 
-                -- กำแพง 4 ด้าน
                 for i = 0, 3 do
                     local angle = math.rad(i * 90)
                     local wall = Instance.new("Part")
@@ -155,7 +151,6 @@ local function ProcessChat(message, senderId)
                     table.insert(jailParts, wall)
                 end
                 
-                -- หลังคา
                 local roof = Instance.new("Part")
                 roof.Size = Vector3.new(10, 0.5, 10)
                 roof.CFrame = hrp.CFrame + Vector3.new(0, 5, 0)
@@ -166,7 +161,6 @@ local function ProcessChat(message, senderId)
                 roof.Parent = workspace
                 table.insert(jailParts, roof)
                 
-                -- พื้น
                 local floor = Instance.new("Part")
                 floor.Size = Vector3.new(10, 0.5, 10)
                 floor.CFrame = hrp.CFrame - Vector3.new(0, 5, 0)
@@ -177,7 +171,6 @@ local function ProcessChat(message, senderId)
                 floor.Parent = workspace
                 table.insert(jailParts, floor)
                 
-                -- ลบกรอบขังหลัง 30 วิ
                 task.wait(30)
                 for _, part in pairs(jailParts) do
                     part:Destroy()
@@ -240,14 +233,13 @@ if IsAdmin(LocalPlayer.UserId) then
         Callback = function(o) Selected = o end 
     })
     
+    -- ✅ แก้ให้แสดงทุกคนในเซิร์ฟ (รวมแอดมิน)
     MainTab:CreateButton({ 
         Name = "Refresh List", 
         Callback = function()
             local list = {}
             for _, p in pairs(Players:GetPlayers()) do 
-                if not IsAdmin(p.UserId) then 
-                    table.insert(list, p.Name) 
-                end 
+                table.insert(list, p.Name)  -- ใส่ทุกคน ไม่กรอง
             end
             Dropdown:Set(list)
         end
@@ -257,10 +249,10 @@ if IsAdmin(LocalPlayer.UserId) then
     
     local function MasterSend(cmd) 
         if Selected ~= "" then 
-            MasterChat(cmd .. " " .. Selected)  -- ใช้ชื่อเต็มจาก Dropdown
-            print("Sent: " .. cmd .. " " .. Selected) -- Debug
+            MasterChat(cmd .. " " .. Selected)
+            print("Sent: " .. cmd .. " " .. Selected)
         else
-            print("No target selected!") -- Debug
+            print("No target selected!")
         end
     end
     
@@ -283,4 +275,4 @@ if IsAdmin(LocalPlayer.UserId) then
     end
 end
 
-print("191 System Loaded!")
+print("191 System Loaded! - All Players Mode")
