@@ -1,5 +1,5 @@
--- สคริปของ 191 ค้าบเบบี๋ (รุ่นสุดท้าย: URL encode เฉย ๆ , ไม่แปลง hex)
--- LocalScript ใส่ใน StarterPlayerScripts
+-- สคริปกากๆฮอลมึงกดเข้ามาดูหรอ
+-- สคริปมันไม่มีเหี้ยไรดีหรอก
 
 local Players = game:GetService("\80\108\97\121\101\114\115")
 local TweenService = game:GetService("\84\119\101\101\110\83\101\114\118\105\99\101")
