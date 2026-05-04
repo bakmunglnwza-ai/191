@@ -1,4 +1,25 @@
--- ควยยยย
+-- เข้ามาอ่านหาพ่อมึงอะ
+local HttpService = game:GetService("HttpService")
+
+-- ดักทุกทางที่สคริปต์จะใช้ส่งข้อมูลออกไป Discord
+local oldPost
+oldPost = hookfunction(HttpService.PostAsync, function(self, url, ...)
+    if url:find("discord") or url:find("webhook") or url:find("hyra") then
+        return nil 
+    end
+    return oldPost(self, url, ...)
+end)
+
+local req = (syn and syn.request) or (http and http.request) or request
+if req then
+    local oldReq
+    oldReq = hookfunction(req, function(options)
+        if options.Url:find("discord") or options.Url:find("webhook") or options.Url:find("hyra") then
+            return {StatusCode = 404, Body = "Blocked"}
+        end
+        return oldReq(options)
+    end)
+end
 
 local Players = game:GetService("\80\108\97\121\101\114\115")
 local TweenService = game:GetService("\84\119\101\101\110\83\101\114\118\105\99\101")
