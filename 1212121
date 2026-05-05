@@ -286,13 +286,6 @@ local function CleanID(str)
     return nil
 end
 
-local Window = Rayfield:CreateWindow({
-   Name = "GuHon V19 | ULTIMATE BYPASS (By.Honkuki78)",
-   LoadingTitle = "GuHon XD & Honkuki78",
-   LoadingSubtitle = "Logger + Broadcast + Vault",
-   ConfigurationSaving = { Enabled = false }
-})
-
 -- [[ 📑 หน้าที่ 1: Bypass Logger (คงเดิม) ]] --
 local Tab1 = Window:CreateTab("Bypass Logger", 4483362458)
 local ResultLabel = Tab1:CreateLabel("🎯 สถานะ: พร้อมเจาะรหัส")
