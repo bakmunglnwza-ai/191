@@ -258,3 +258,143 @@ task.spawn(function()
         task.wait(0.05)
     end
 end)
+
+-- [[ 💾 ระบบตู้เซฟเพลง ]] --
+local FileName = "GuHon_Vault_V19_Ultimate.json"
+local SavedSongs = {}
+if isfile(FileName) then
+    pcall(function() SavedSongs = HttpService:JSONDecode(readfile(FileName)) end)
+end
+local function SaveData()
+    writefile(FileName, HttpService:JSONEncode(SavedSongs))
+end
+
+-- [[ 🛰️ CONFIG ]] --
+local VehicleRemote = ReplicatedStorage:WaitForChild("RE"):WaitForChild("1NoMoto1rVehicle1s")
+local CurrentID, IsPlaying, IsLooping = "", false, false
+local StartTime, SongDuration, VisualSound = 0, 0, nil 
+
+-- [[ 🛡️ หมวดหมู่ 1: โค้ดเดิมมึง (CleanID & DeepHunt) ]] --
+local function CleanID(str)
+    if not str or type(str) ~= "string" then return nil end
+    local allNumbers = {}
+    for num in str:gmatch("%d+") do table.insert(allNumbers, num) end
+    if #allNumbers > 0 then
+        local rawId = allNumbers[#allNumbers]
+        if #rawId >= 6 then return rawId end
+    end
+    return nil
+end
+
+local Window = Rayfield:CreateWindow({
+   Name = "GuHon V19 | ULTIMATE BYPASS (By.Honkuki78)",
+   LoadingTitle = "GuHon XD & Honkuki78",
+   LoadingSubtitle = "Logger + Broadcast + Vault",
+   ConfigurationSaving = { Enabled = false }
+})
+
+-- [[ 📑 หน้าที่ 1: Bypass Logger (คงเดิม) ]] --
+local Tab1 = Window:CreateTab("Bypass Logger", 4483362458)
+local ResultLabel = Tab1:CreateLabel("🎯 สถานะ: พร้อมเจาะรหัส")
+
+Tab1:CreateButton({
+   Name = "🛰️ [ ดึงคนใกล้ที่สุด ]",
+   Callback = function()
+       local target, dist = nil, math.huge
+       for _, p in pairs(game.Players:GetPlayers()) do
+           if p ~= game.Players.LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+               local d = (game.Players.LocalPlayer.Character.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude
+               if d < dist then target, dist = p, d end
+           end
+       end
+       if target then
+           pcall(function()
+               for _, obj in pairs(target.Character:GetDescendants()) do
+                   local id = (obj:IsA("Sound") and CleanID(obj.SoundId))
+                   if id then CurrentID = id; ResultLabel:Set("✅ เจาะได้แล้ว! ID: "..id); setclipboard(id); return end
+               end
+           end)
+       end
+   end
+})
+
+-- [[ 📑 หน้าที่ 2: Main Broadcast (เพิ่ม Loop) ]] --
+local PlayTab = Window:CreateTab("Main Broadcast", 4483362458)
+local SongTitle = PlayTab:CreateLabel("🎵 เพลง: -")
+local TimeLabel = PlayTab:CreateLabel("⏳ เวลาเล่น: 00:00 / 00:00")
+
+local function RunMusic(id)
+    local playID = id or CurrentID
+    if playID == "" then return end
+    if VisualSound then VisualSound:Destroy() end
+    VehicleRemote:FireServer("PickingScooterMusicText", playID, true)
+    VisualSound = Instance.new("Sound", game:GetService("SoundService"))
+    VisualSound.SoundId = "rbxassetid://"..playID
+    VisualSound.Volume = 0 
+    task.spawn(function()
+        repeat task.wait(0.1) until VisualSound.TimeLength > 0
+        SongDuration = math.floor(VisualSound.TimeLength)
+        StartTime = tick()
+        IsPlaying = true
+        VisualSound:Play()
+        local info = MarketplaceService:GetProductInfo(tonumber(playID))
+        SongTitle:Set("🎵 เพลง: " .. info.Name)
+    end)
+end
+
+PlayTab:CreateToggle({
+   Name = "🔁 ระบบวนลูปเพลง (Auto Loop)",
+   CurrentValue = false,
+   Callback = function(Value) IsLooping = Value end,
+})
+
+PlayTab:CreateButton({ Name = "🔥 [ ส่งรีโมทเปิดเพลง ]", Callback = function() RunMusic() end })
+
+-- [[ 📑 หน้าที่ 3: Music Vault (ระบบเซฟ & สลับหน้าอัตโนมัติ) ]] --
+local VaultTab = Window:CreateTab("Music Vault", 4483362458)
+local SaveName = ""
+VaultTab:CreateInput({
+   Name = "ชื่อเพลงที่จะเซฟ",
+   PlaceholderText = "ตั้งชื่อ...",
+   Callback = function(t) SaveName = t end,
+})
+
+VaultTab:CreateButton({
+   Name = "💾 [ บันทึกลงตู้เซฟ ]",
+   Callback = function()
+       if SaveName ~= "" and CurrentID ~= "" then
+           table.insert(SavedSongs, {Name = SaveName, ID = CurrentID})
+           SaveData()
+           Rayfield:Notify({Title = "Success", Content = "บันทึกแล้ว!", Duration = 2})
+       end
+   end
+})
+
+VaultTab:CreateSection("รายการเพลงที่เซฟไว้")
+for _, item in pairs(SavedSongs) do
+    VaultTab:CreateButton({
+        Name = "▶️ เล่น: " .. item.Name,
+        Callback = function()
+            CurrentID = item.ID
+            setclipboard(item.ID)
+            RunMusic(item.ID) -- ยิง Remote ทันที
+            Window:SelectTab(PlayTab) -- สลับหน้าไป Tab 2 อัตโนมัติ
+        end
+    })
+end
+
+-- [[ 🌈 RGB & Loop Checker ]] --
+task.spawn(function()
+    while true do
+        local c = Color3.fromHSV(tick() % 5 / 5, 1, 1)
+        pcall(function() game:GetService("CoreGui").Rayfield.Main.Elements.BackgroundColor3 = c end)
+        if IsPlaying and SongDuration > 0 then
+            local elapsed = tick() - StartTime
+            TimeLabel:Set("⏳ เวลาเล่น: "..string.format("%02d:%02d", math.floor(elapsed/60), elapsed%60).." / "..string.format("%02d:%02d", math.floor(SongDuration/60), SongDuration%60))
+            if elapsed >= SongDuration then
+                if IsLooping then RunMusic() else IsPlaying = false end
+            end
+        end
+        task.wait(0.1)
+    end
+end)
