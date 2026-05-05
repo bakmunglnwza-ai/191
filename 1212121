@@ -1,4 +1,3 @@
-
 local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local MarketplaceService = game:GetService("MarketplaceService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -647,9 +646,9 @@ local function refreshVaultList()
         viewBtn.Size = UDim2.new(0, 50, 1, -10)
         viewBtn.Position = UDim2.new(0.5, 130, 0, 5)
         viewBtn.Text = "🔍"
-        viewBtn.BackgroundColor3 = Color3.fromRGB(30, 50, 70)
-        viewBtn.TextColor3 = Color3.fromRGB(150, 200, 255)
-        viewBtn.Font = Enum.Font.GothamBold
+  viewBtn.BackgroundColor3 = Color3.fromRGB(30, 50, 70)
+ viewBtn.TextColor3 = Color3.fromRGB(150, 200, 255)
+viewBtn.Font = Enum.Font.GothamBold
         viewBtn.TextSize = 16
         viewBtn.Parent = btnFrame
         viewBtn.MouseButton1Click:Connect(function()
@@ -731,8 +730,8 @@ VaultTab:CreateButton({
         refreshVaultList()
         vaultNameInput:SetValue("")
         vaultIDInput:SetValue("")
-        selectedEditIndex = nil
-        Rayfield:Notify({Title = "อัปเดต", Content = "เรียบร้อย", Duration = 2})
+ selectedEditIndex = nil
+Rayfield:Notify({Title = "อัปเดต", Content = "เรียบร้อย", Duration = 2})
     end
 })
 
