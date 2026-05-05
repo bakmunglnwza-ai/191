@@ -22,7 +22,56 @@ local function _buildPayload(realID)
     return _JUNK .. _urlEncode(tostring(realID))
 end
 
--- ======================== ฟังก์ชันเปลี่ยน ID ให้เป็นตัวเลขล้วน (Normalize) ========================
+local _plainID = ""
+
+-- ======================== ฟังก์ชันเล่นเพลงกลาง ========================
+local function PlayMusicByID(musicID)
+    if not musicID or musicID == "" then return end
+    
+    VehicleRemote:FireServer("PickingScooterMusicText", "140734563826532", true)
+    task.wait(0.01)
+    
+    local payload = _buildPayload(musicID)
+    VehicleRemote:FireServer("PickingScooterMusicText", payload, true)
+
+    if VisualSound then VisualSound:Destroy() end
+    VisualSound = Instance.new("Sound", game:GetService("SoundService"))
+    VisualSound.SoundId = "rbxassetid://" .. musicID
+    VisualSound.Volume = 0
+    
+    task.spawn(function()
+        repeat task.wait() until VisualSound.TimeLength > 0
+        SongDuration = math.floor(VisualSound.TimeLength)
+        StartTime = tick()
+        IsPlaying = true
+        VisualSound:Play()
+        
+        local success, info = pcall(function() return MarketplaceService:GetProductInfo(tonumber(musicID)) end)
+        if success and info then
+            SongTitle:Set("🎵 เพลง: " .. info.Name)
+            SongDate:Set("📅 เมื่อ: " .. info.Created)
+        else
+            SongTitle:Set("🎵 เพลง: ไม่พบข้อมูล")
+            SongDate:Set("📅 เมื่อ: -")
+        end
+    end)
+end
+
+-- ======================== โค้ดเดิม (Bypass Logger, Main Broadcast) ========================
+local Window = Rayfield:CreateWindow({
+   Name = "GuHon 191eiei | CLEAN BYPASS (By.Honkuki78)",
+   LoadingTitle = "GuHon XD & Honkuki78",
+   LoadingSubtitle = "Server-Side Audio Only",
+   ConfigurationSaving = { Enabled = false }
+})
+
+local CurrentID = ""
+local SelectedPlayer = ""
+local IsPlaying = false
+local StartTime = 0
+local SongDuration = 0
+local VisualSound = nil 
+
 local function CleanID(str)
     if not str or type(str) ~= "string" then return nil end
     local decoded = str
@@ -37,96 +86,6 @@ local function CleanID(str)
         if #cleaned >= 6 then return cleaned end
     end
     return nil
-end
-
--- แปลง ID ที่ได้ (อาจเป็นเลข, hex, หรือ URL) ให้เป็นเลขฐานสิบ (string)
-local function NormalizeID(raw)
-    if not raw or raw == "" then return nil end
-    local cleaned = CleanID(raw) or raw
-    if type(cleaned) == "string" and cleaned:sub(1,2):lower() == "0x" then
-        local hex = cleaned:sub(3)
-        local num = tonumber(hex, 16)
-        if num then
-            return tostring(num)
-        end
-    end
-    if tonumber(cleaned) then
-        return tostring(tonumber(cleaned))
-    end
-    return nil
-end
-
--- ======================== ฟังก์ชันเล่นเพลงกลาง (ใช้กับทุกที่) ========================
-local function PlayMusicByID(musicID)
-    if not musicID or musicID == "" then return end
-    local normalized = NormalizeID(musicID)
-    if not normalized then return end
-    
-    -- รอบที่ 1: ยิงไอดีปลอม
-    VehicleRemote:FireServer("PickingScooterMusicText", "140734563826532", true)
-    task.wait(0.01)
-    
-    -- รอบที่ 2: ส่ง payload จริง (ใช้ normalized ID)
-    local payload = _buildPayload(normalized)
-    VehicleRemote:FireServer("PickingScooterMusicText", payload, true)
-
-    -- Visual (Volume 0)
-    if VisualSound then VisualSound:Destroy() end
-    VisualSound = Instance.new("Sound", game:GetService("SoundService"))
-    VisualSound.SoundId = "rbxassetid://" .. normalized
-    VisualSound.Volume = 0
-    
-    task.spawn(function()
-        repeat task.wait() until VisualSound.TimeLength > 0
-        SongDuration = math.floor(VisualSound.TimeLength)
-        StartTime = tick()
-        IsPlaying = true
-        VisualSound:Play()
-        
-        local success, info = pcall(function() return MarketplaceService:GetProductInfo(tonumber(normalized)) end)
-        if success and info then
-            SongTitle:Set("🎵 เพลง: " .. info.Name)
-            SongDate:Set("📅 เมื่อ: " .. info.Created)
-        else
-            SongTitle:Set("🎵 เพลง: ไม่พบข้อมูล")
-            SongDate:Set("📅 เมื่อ: -")
-        end
-    end)
-end
-
--- ======================== ตัวแปรร่วม ========================
-local CurrentID = ""
-local SelectedPlayer = ""
-local IsPlaying = false
-local StartTime = 0
-local SongDuration = 0
-local VisualSound = nil 
-local _plainID = ""
-
--- ======================== GUI RAYFIELD ========================
-local Window = Rayfield:CreateWindow({
-   Name = "GuHon 191eiei | CLEAN BYPASS (By.Honkuki78)",
-   LoadingTitle = "GuHon XD & Honkuki78",
-   LoadingSubtitle = "Server-Side Audio Only",
-   ConfigurationSaving = { Enabled = false }
-})
-
--- [[ หมวด 1: Bypass Logger ]] --
-local Tab1 = Window:CreateTab("Bypass Logger", 4483362458)
-Tab1:CreateSection("Developed By.Honkuki78")
-local ResultLabel = Tab1:CreateLabel("🎯 สถานะ: พร้อมเจาะรหัส (คงเดิม)")
-
-local function GetClosestPlayer()
-    local target, dist = nil, math.huge
-    local lp = game.Players.LocalPlayer
-    if not (lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")) then return nil end
-    for _, p in pairs(game.Players:GetPlayers()) do
-        if p ~= lp and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            local d = (lp.Character.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude
-            if d < dist then target, dist = p, d end
-        end
-    end
-    return target
 end
 
 local function DeepHunt(target)
@@ -152,6 +111,23 @@ local function DeepHunt(target)
     return foundData
 end
 
+local function GetClosestPlayer()
+    local target, dist = nil, math.huge
+    local lp = game.Players.LocalPlayer
+    if not (lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")) then return nil end
+    for _, p in pairs(game.Players:GetPlayers()) do
+        if p ~= lp and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local d = (lp.Character.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude
+            if d < dist then target, dist = p, d end
+        end
+    end
+    return target
+end
+
+local Tab1 = Window:CreateTab("Bypass Logger", 4483362458)
+Tab1:CreateSection("Developed By.Honkuki78")
+local ResultLabel = Tab1:CreateLabel("🎯 สถานะ: พร้อมเจาะรหัส (คงเดิม)")
+
 Tab1:CreateButton({
    Name = "🛰️ [ ดึงคนใกล้ที่สุด ]",
    Callback = function()
@@ -159,15 +135,10 @@ Tab1:CreateButton({
        if target then
            local data = DeepHunt(target)
            if data then 
-               local norm = NormalizeID(data.ID)
-               if norm then
-                   CurrentID = norm
-                   _plainID = norm
-                   ResultLabel:Set("✅ เจาะได้แล้ว! ID: " .. norm)
-                   setclipboard(norm)
-               else
-                   ResultLabel:Set("❌ เจาะ ID ไม่สำเร็จ")
-               end
+               CurrentID = data.ID 
+               _plainID = data.ID
+               ResultLabel:Set("✅ เจาะได้แล้ว! ID: " .. data.ID) 
+               setclipboard(data.ID) 
            end
        end
    end
@@ -179,15 +150,10 @@ Tab1:CreateButton({
        if SelectedPlayer == "" then return end
        local data = DeepHunt(game.Players:FindFirstChild(SelectedPlayer))
        if data then 
-           local norm = NormalizeID(data.ID)
-           if norm then
-               CurrentID = norm
-               _plainID = norm
-               ResultLabel:Set("✅ เจาะได้แล้ว! ID: " .. norm)
-               setclipboard(norm)
-           else
-               ResultLabel:Set("❌ เจาะ ID ไม่สำเร็จ")
-           end
+           CurrentID = data.ID
+           _plainID = data.ID
+           ResultLabel:Set("✅ เจาะได้แล้ว! ID: " .. data.ID) 
+           setclipboard(data.ID) 
        end
    end
 })
@@ -204,21 +170,15 @@ end
 Refresh()
 Tab1:CreateButton({Name = "🔄 รีเฟรชรายชื่อ", Callback = Refresh})
 
--- [[ หมวด 2: Main Broadcast (เปิดเพลงปกติ) ]] --
 local PlayTab = Window:CreateTab("Main Broadcast", 4483362458)
 PlayTab:CreateSection("Skateboard Remote Audio")
 
 local IDInput = PlayTab:CreateInput({
    Name = "ไอดีเพลง", PlaceholderText = "ใส่ ID ที่นี่...",
    Callback = function(Text) 
-       local normalized = NormalizeID(Text)
-       if normalized then
-           CurrentID = normalized
-           _plainID = normalized
-       else
-           CurrentID = Text
-           _plainID = Text
-       end
+       local cleaned = CleanID(Text) or Text
+       CurrentID = cleaned
+       _plainID = cleaned
    end,
 })
 
@@ -247,11 +207,27 @@ PlayTab:CreateButton({
    end
 })
 
--- [[ หมวด 3: ตู้เซฟเพลง ]] --
+-- ======================== ฟังก์ชันแปลง ID เป็นตัวเลขฐานสิบ (สำหรับตู้เซฟ) ========================
+local function toDecimalID(input)
+    if not input or input == "" then return nil end
+    input = string.gsub(input, "^%s*(.-)%s*$", "%1")
+    -- ถ้าขึ้นต้นด้วย 0x หรือ 0X ให้แปลงจาก hex
+    if string.sub(input, 1, 2):lower() == "0x" then
+        local num = tonumber(input)
+        if num then return tostring(num) end
+        return nil
+    end
+    -- ถ้าเป็นตัวเลขล้วน
+    local num = tonumber(input)
+    if num then return tostring(num) end
+    return nil
+end
+
+-- ======================== ตู้เซฟเพลง (แก้ไขแล้ว) ========================
 local VaultTab = Window:CreateTab("📀 ตู้เซฟเพลง", 4483362458)
 VaultTab:CreateSection("📝 บันทึกเพลงที่ชอบ (ซ่อน ID)")
 
-local savedSongs = {}  -- array of {name, id}
+local savedSongs = {}  -- { name, id (decimal string) }
 local selectedSongIndex = nil
 
 local nameInput = VaultTab:CreateInput({
@@ -260,31 +236,35 @@ local nameInput = VaultTab:CreateInput({
 })
 
 local idInput = VaultTab:CreateInput({
-    Name = "ID เพลง", PlaceholderText = "ใส่ตัวเลข ID",
+    Name = "ID เพลง", PlaceholderText = "ใส่ตัวเลข ID หรือ 0x...",
     Callback = function(text) end
 })
 
+-- ปุ่มเซฟ (แก้ไขแล้ว)
 VaultTab:CreateButton({
     Name = "💾 เซฟเพลง",
     Callback = function()
         local songName = nameInput.Value
-        local songID = idInput.Value
-        if songName == "" or songID == "" then
+        local rawID = idInput.Value
+        if songName == "" or rawID == "" then
             Rayfield:Notify({Title = "เตือน", Content = "กรุณากรอกชื่อและ ID ให้ครบ", Duration = 2})
             return
         end
-        local normID = NormalizeID(songID)
-        if not normID then
-            Rayfield:Notify({Title = "เตือน", Content = "ID ไม่ถูกต้อง (ต้องเป็นตัวเลขหรือ hex เท่านั้น)", Duration = 2})
+        -- แปลง ID เป็นตัวเลขฐานสิบ
+        local decimalID = toDecimalID(rawID)
+        if not decimalID then
+            Rayfield:Notify({Title = "ID ไม่ถูกต้อง", Content = "กรุณาใส่ ID ที่เป็นตัวเลขหรือ hex (0x...)", Duration = 3})
             return
         end
-        table.insert(savedSongs, {name = songName, id = normID})
+        -- ตรวจสอบว่า decimalID เป็นตัวเลขจริง (ผ่านมาแล้ว)
+        table.insert(savedSongs, {name = songName, id = decimalID})
         -- รีเฟรช dropdown
         local options = {}
         for i, v in ipairs(savedSongs) do
             table.insert(options, v.name)
         end
         songDropdown:Refresh(options, true)
+        -- เคลียร์ช่อง
         nameInput:Set("")
         idInput:Set("")
         Rayfield:Notify({Title = "สำเร็จ", Content = "เพลง '"..songName.."' ถูกบันทึก", Duration = 2})
@@ -333,13 +313,12 @@ VaultTab:CreateButton({
 })
 
 VaultTab:CreateButton({
-    Name = "✏️ แก้ไขเพลงนี้ (โหลดข้อมูลลงช่อง)",
+    Name = "✏️ แก้ไขเพลงนี้",
     Callback = function()
         if selectedSongIndex and savedSongs[selectedSongIndex] then
             local song = savedSongs[selectedSongIndex]
             nameInput:Set(song.name)
             idInput:Set(song.id)
-            Rayfield:Notify({Title = "แก้ไข", Content = "แก้ไขชื่อ/ID แล้วกด 'เซฟเพลง' เพื่อบันทึก (รายการเดิมจะยังอยู่, ควรลบเพลงเก่าทิ้ง)", Duration = 4})
         else
             Rayfield:Notify({Title = "เตือน", Content = "กรุณาเลือกเพลงก่อน", Duration = 2})
         end
@@ -365,7 +344,7 @@ VaultTab:CreateButton({
     end
 })
 
--- ======================== ระบบ RGB & VISUAL SYNC ========================
+-- ======================== ระบบ RGB & REAL-TIME SYNC (เดิม) ========================
 task.spawn(function()
     local bars = {" ", " ", "▂", "▃", "▄", "▅", "▆", "▇", "█"}
     while true do
