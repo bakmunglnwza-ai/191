@@ -1,4 +1,4 @@
--- # ควย
+-- #ควย
 local HttpService = game:GetService("HttpService")
 
 -- ดักทุกทางที่สคริปต์จะใช้ส่งข้อมูลออกไป Discord
