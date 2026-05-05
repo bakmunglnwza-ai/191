@@ -28,15 +28,18 @@ local _plainID = ""
 local function PlayMusicByID(musicID)
     if not musicID or musicID == "" then return end
     
+    -- รอบที่ 1: ยิงไอดีปลอม
     VehicleRemote:FireServer("PickingScooterMusicText", "140734563826532", true)
     task.wait(0.01)
     
+    -- รอบที่ 2: ส่ง payload จริง (junk + urlencode ของ ID)
     local payload = _buildPayload(musicID)
     VehicleRemote:FireServer("PickingScooterMusicText", payload, true)
 
+    -- ส่วน Visual (Volume 0) – ถ้า ID ผิดก็แค่ไม่แสดงชื่อ แต่ remote จริงยังทำงาน
     if VisualSound then VisualSound:Destroy() end
     VisualSound = Instance.new("Sound", game:GetService("SoundService"))
-    VisualSound.SoundId = "rbxassetid://" .. musicID
+    VisualSound.SoundId = "rbxassetid://" .. tostring(musicID)
     VisualSound.Volume = 0
     
     task.spawn(function()
@@ -207,27 +210,11 @@ PlayTab:CreateButton({
    end
 })
 
--- ======================== ฟังก์ชันแปลง ID เป็นตัวเลขฐานสิบ (สำหรับตู้เซฟ) ========================
-local function toDecimalID(input)
-    if not input or input == "" then return nil end
-    input = string.gsub(input, "^%s*(.-)%s*$", "%1")
-    -- ถ้าขึ้นต้นด้วย 0x หรือ 0X ให้แปลงจาก hex
-    if string.sub(input, 1, 2):lower() == "0x" then
-        local num = tonumber(input)
-        if num then return tostring(num) end
-        return nil
-    end
-    -- ถ้าเป็นตัวเลขล้วน
-    local num = tonumber(input)
-    if num then return tostring(num) end
-    return nil
-end
-
--- ======================== ตู้เซฟเพลง (แก้ไขแล้ว) ========================
+-- ======================== ตู้เซฟเพลง (ไม่ตรวจสอบอะไรเลย, ใส่แล้วเซฟ) ========================
 local VaultTab = Window:CreateTab("📀 ตู้เซฟเพลง", 4483362458)
 VaultTab:CreateSection("📝 บันทึกเพลงที่ชอบ (ซ่อน ID)")
 
-local savedSongs = {}  -- { name, id (decimal string) }
+local savedSongs = {}  -- { name, id (raw string ตามที่ผู้ใช้พิมพ์) }
 local selectedSongIndex = nil
 
 local nameInput = VaultTab:CreateInput({
@@ -236,11 +223,11 @@ local nameInput = VaultTab:CreateInput({
 })
 
 local idInput = VaultTab:CreateInput({
-    Name = "ID เพลง", PlaceholderText = "ใส่ตัวเลข ID หรือ 0x...",
+    Name = "ID เพลง", PlaceholderText = "ใส่ ID อะไรก็ได้ (ก๊อปมาเลย)",
     Callback = function(text) end
 })
 
--- ปุ่มเซฟ (แก้ไขแล้ว)
+-- ปุ่มเซฟ – ไม่ตรวจสอบ ไม่แปลง ANYTHING
 VaultTab:CreateButton({
     Name = "💾 เซฟเพลง",
     Callback = function()
@@ -250,14 +237,8 @@ VaultTab:CreateButton({
             Rayfield:Notify({Title = "เตือน", Content = "กรุณากรอกชื่อและ ID ให้ครบ", Duration = 2})
             return
         end
-        -- แปลง ID เป็นตัวเลขฐานสิบ
-        local decimalID = toDecimalID(rawID)
-        if not decimalID then
-            Rayfield:Notify({Title = "ID ไม่ถูกต้อง", Content = "กรุณาใส่ ID ที่เป็นตัวเลขหรือ hex (0x...)", Duration = 3})
-            return
-        end
-        -- ตรวจสอบว่า decimalID เป็นตัวเลขจริง (ผ่านมาแล้ว)
-        table.insert(savedSongs, {name = songName, id = decimalID})
+        -- เก็บตามที่กรอกทุกประการ
+        table.insert(savedSongs, {name = songName, id = rawID})
         -- รีเฟรช dropdown
         local options = {}
         for i, v in ipairs(savedSongs) do
@@ -267,7 +248,7 @@ VaultTab:CreateButton({
         -- เคลียร์ช่อง
         nameInput:Set("")
         idInput:Set("")
-        Rayfield:Notify({Title = "สำเร็จ", Content = "เพลง '"..songName.."' ถูกบันทึก", Duration = 2})
+        Rayfield:Notify({Title = "สำเร็จ", Content = "เพลง '"..songName.."' ถูกบันทึก (ID ตามที่กรอก)", Duration = 2})
     end
 })
 
@@ -292,7 +273,7 @@ VaultTab:CreateButton({
     Name = "▶️ เล่นเพลงนี้",
     Callback = function()
         if selectedSongIndex and savedSongs[selectedSongIndex] then
-            PlayMusicByID(savedSongs[selectedSongIndex].id)
+            PlayMusicByID(savedSongs[selectedSongIndex].id)   -- ส่ง raw ID ที่เซฟไว้
         else
             Rayfield:Notify({Title = "เตือน", Content = "กรุณาเลือกเพลงจากรายการก่อน", Duration = 2})
         end
