@@ -1,30 +1,15 @@
--- [[ WEBHOOK BLOCKER ONLY ]] --
-local HttpService = game:GetService("HttpService")
-
--- ดักทุกทางที่สคริปต์จะใช้ส่งข้อมูลออกไป Discord
-local oldPost
-oldPost = hookfunction(HttpService.PostAsync, function(self, url, ...)
-    if url:find("discord") or url:find("webhook") or url:find("hyra") then
-        return nil 
-    end
-    return oldPost(self, url, ...)
+-- [[ 🔥 UI RE-FIXED | PLAYER LIST & VAULT EDITION ]] --
+local success, Rayfield = pcall(function()
+    return loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 end)
 
-local req = (syn and syn.request) or (http and http.request) or request
-if req then
-    local oldReq
-    oldReq = hookfunction(req, function(options)
-        if options.Url:find("discord") or options.Url:find("webhook") or options.Url:find("hyra") then
-            return {StatusCode = 404, Body = "Blocked"}
-        end
-        return oldReq(options)
-    end)
+if not success or not Rayfield then
+    Rayfield = loadstring(game:HttpGet('https://raw.githubusercontent.com/SiriusSoftwareLtd/Rayfield/main/source.lua'))()
 end
 
-local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
 local MarketplaceService = game:GetService("MarketplaceService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local HttpService = game:GetService("HttpService") -- เพิ่มสำหรับจัดการไฟล์เซฟ
+local HttpService = game:GetService("HttpService")
 
 -- [[ 🛰️ REMOTE CONFIG ]] --
 local VehicleRemote = ReplicatedStorage:WaitForChild("RE"):WaitForChild("1NoMoto1rVehicle1s")
@@ -51,12 +36,8 @@ local IsPlaying = false
 local StartTime = 0
 local SongDuration = 0
 local VisualSound = nil 
+local MainSongLabel, MainDateLabel, MainTimeLabel
 
-local MainSongLabel
-local MainDateLabel
-local MainTimeLabel
-
--- ฟังก์ชันเล่นเพลงกลาง
 local function PlayMusicByID(musicID)
     if not musicID or musicID == "" then return end
     VehicleRemote:FireServer("PickingScooterMusicText", "140734563826532", true)
@@ -74,17 +55,17 @@ local function PlayMusicByID(musicID)
         StartTime = tick()
         IsPlaying = true
         VisualSound:Play()
-        local success, info = pcall(function() return MarketplaceService:GetProductInfo(tonumber(musicID)) end)
-        if success and info then
+        local s, info = pcall(function() return MarketplaceService:GetProductInfo(tonumber(musicID)) end)
+        if s and info then
             if MainSongLabel then MainSongLabel:Set("🎵 เพลง: " .. info.Name) end
             if MainDateLabel then MainDateLabel:Set("📅 เมื่อ: " .. info.Created) end
         end
     end)
 end
 
--- ======================== โค้ดเดิม (หมวด 1-2 อยู่เดิมเป๊ะ) ========================
+-- ======================== [ 🔥 หมวดที่ 1: ดึงหลัง 00 (FIXED LIST) ] ========================
 local Window = Rayfield:CreateWindow({
-   Name = "GuHon 191eiei | SAVE SYSTEM (By.Honkuki78)",
+   Name = "GuHon 191eiei | VAULT EDITION (By.Honkuki78)",
    LoadingTitle = "GuHon XD & Honkuki78",
    LoadingSubtitle = "Server-Side Audio Only",
    ConfigurationSaving = { Enabled = false }
@@ -103,8 +84,7 @@ local function CleanID(str)
     for num in decoded:gmatch("%d+") do table.insert(allNumbers, num) end
     if #allNumbers > 0 then
         local rawId = allNumbers[#allNumbers]
-        local cleaned = tostring(tonumber(rawId)) 
-        if #cleaned >= 6 then return cleaned end
+        if #rawId >= 6 then return tostring(tonumber(rawId)) end
     end
     return nil
 end
@@ -132,76 +112,87 @@ local function DeepHunt(target)
     return foundData
 end
 
-local function GetClosestPlayer()
-    local target, dist = nil, math.huge
-    local lp = game.Players.LocalPlayer
-    if not (lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")) then return nil end
-    for _, p in pairs(game.Players:GetPlayers()) do
-        if p ~= lp and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-            local d = (lp.Character.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude
-            if d < dist then target, dist = p, d end
-        end
-    end
-    return target
-end
-
--- [[ 📑 หมวดหมู่ที่ 1: Bypass Logger ]] --
 local Tab1 = Window:CreateTab("Bypass Logger", 4483362458)
 Tab1:CreateSection("Developed By.Honkuki78")
-local ResultLabel = Tab1:CreateLabel("🎯 สถานะ: พร้อมเจาะรหัส (คงเดิม)")
+local ResultLabel = Tab1:CreateLabel("🎯 สถานะ: พร้อมดึงไอดีหลัง 00")
 
 Tab1:CreateButton({
    Name = "🛰️ [ ดึงคนใกล้ที่สุด ]",
    Callback = function()
-       local target = GetClosestPlayer()
+       local lp = game.Players.LocalPlayer
+       local target, dist = nil, math.huge
+       for _, p in pairs(game.Players:GetPlayers()) do
+           if p ~= lp and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+               local d = (lp.Character.HumanoidRootPart.Position - p.Character.HumanoidRootPart.Position).Magnitude
+               if d < dist then target = p; dist = d end
+           end
+       end
        if target then
            local data = DeepHunt(target)
            if data then 
-               CurrentID = data.ID 
-               _plainID = data.ID
-               ResultLabel:Set("✅ เจาะได้แล้ว! ID: " .. data.ID) 
-               setclipboard(data.ID) 
+               CurrentID = data.ID; _plainID = data.ID
+               ResultLabel:Set("✅ เจาะได้แล้ว! ID: " .. data.ID); setclipboard(data.ID) 
            end
        end
    end
 })
 
+local PlayerDropdown -- ประกาศตัวแปร Dropdown ไว้ข้างนอกเพื่อให้ฟังก์ชัน Refresh เรียกใช้ได้
+
+local function GetPlayerList()
+    local list = {}
+    for _, p in pairs(game.Players:GetPlayers()) do
+        if p ~= game.Players.LocalPlayer then
+            table.insert(list, p.Name)
+        end
+    end
+    return list
+end
+
+PlayerDropdown = Tab1:CreateDropdown({
+   Name = "เลือกเป้าหมาย (ชื่อคนในเซิร์ฟ)",
+   Options = GetPlayerList(),
+   CurrentOption = "",
+   Callback = function(v) 
+       SelectedPlayer = v[1] 
+       ResultLabel:Set("🎯 เป้าหมายปัจจุบัน: " .. SelectedPlayer)
+   end,
+})
+
 Tab1:CreateButton({
-   Name = "⚡ [ เจาะไอดีจริง (No Zeros) ]",
+   Name = "🔄 [ รีเฟรชรายชื่อคน ]",
    Callback = function()
-       if SelectedPlayer == "" then return end
+       local newList = GetPlayerList()
+       PlayerDropdown:Refresh(newList, true)
+       Rayfield:Notify({Title = "System", Content = "อัปเดตรายชื่อคนในเซิร์ฟแล้ว", Duration = 1.5})
+   end
+})
+
+Tab1:CreateButton({
+   Name = "⚡ [ เจาะไอดีจากชื่อที่เลือก ]",
+   Callback = function()
+       if SelectedPlayer == "" or not game.Players:FindFirstChild(SelectedPlayer) then 
+           Rayfield:Notify({Title = "Error", Content = "กรุณาเลือกเป้าหมายก่อน!", Duration = 2})
+           return 
+       end
        local data = DeepHunt(game.Players:FindFirstChild(SelectedPlayer))
        if data then 
-           CurrentID = data.ID
-           _plainID = data.ID
-           ResultLabel:Set("✅ เจาะได้แล้ว! ID: " .. data.ID) 
-           setclipboard(data.ID) 
+           CurrentID = data.ID; _plainID = data.ID
+           ResultLabel:Set("✅ เจาะได้แล้ว! ID: " .. data.ID); setclipboard(data.ID) 
+           Rayfield:Notify({Title = "Success", Content = "Copy ID ลง Clipboard แล้ว", Duration = 2})
+       else
+           ResultLabel:Set("❌ หาไม่พบ หรือเป้าหมายไม่ได้ใส่เพลง")
        end
    end
 })
 
-local Dropdown = Tab1:CreateDropdown({
-   Name = "เลือกเป้าหมาย", Options = {}, CurrentOption = "",
-   Callback = function(v) SelectedPlayer = v[1] end,
-})
-local function Refresh()
-    local list = {}
-    for _, p in pairs(game.Players:GetPlayers()) do if p ~= game.Players.LocalPlayer then table.insert(list, p.Name) end end
-    Dropdown:Refresh(list, true)
-end
-Refresh()
-Tab1:CreateButton({Name = "🔄 รีเฟรชรายชื่อ", Callback = Refresh})
-
--- [[ 📑 หมวดหมู่ที่ 2: Main Broadcast ]] --
+-- ======================== [ 📑 หมวดที่ 2: Broadcast (ห้ามแตะ) ] ========================
 local PlayTab = Window:CreateTab("Main Broadcast", 4483362458)
 PlayTab:CreateSection("Skateboard Remote Audio")
 
 PlayTab:CreateInput({
-   Name = "ไอดีเพลง", PlaceholderText = "ใส่ ID ที่นี่...",
-   Callback = function(Text) 
-       local cleaned = CleanID(Text) or Text
-       _plainID = cleaned
-   end,
+   Name = "ไอดีเพลง", PlaceholderText = "ใส่ ID...",
+   Callback = function(Text) _plainID = CleanID(Text) or Text end,
 })
 
 MainSongLabel = PlayTab:CreateLabel("🎵 เพลงที่สเก็ตบอร์ด: -")
@@ -210,11 +201,8 @@ MainTimeLabel = PlayTab:CreateLabel("⏳ เวลาเล่น: 00:00 / 00:00
 local VisualLabel = PlayTab:CreateLabel("🔊 [ ⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯ ]")
 
 PlayTab:CreateButton({
-   Name = "🔥 [ ส่งรีโมทเปิดเพลงเข้าสเก็ตบอร์ด ]",
-   Callback = function()
-       if _plainID == "" then return end
-       PlayMusicByID(_plainID)
-   end
+   Name = "🔥 [ ส่งรีโมทเปิดเพลง ]",
+   Callback = function() if _plainID ~= "" then PlayMusicByID(_plainID) end end
 })
 
 PlayTab:CreateButton({
@@ -227,80 +215,66 @@ PlayTab:CreateButton({
    end
 })
 
--- ======================== หมวดหมู่ที่ 3 (ระบบเซฟลงเครื่อง) ========================
+-- ======================== [ ✅ หมวดที่ 3: ตู้เซฟเพลง (คงเดิม) ] ========================
 local VaultTab = Window:CreateTab("📀 ตู้เซฟเพลง", 4483362458)
-VaultTab:CreateSection("📝 บันทึกเพลงลงเครื่อง (ไม่หายเมื่อรันใหม่)")
+VaultTab:CreateSection("📝 ระบบจัดการเพลง (บันทึก/แก้ไข/ลบ)")
 
 local fileName = "GuHon_Vault_Save.json"
 local savedSongs = {}
 local selectedSongIndex = nil
 local vName, vID = "", "" 
 
--- ฟังก์ชันเซฟข้อมูลลงไฟล์
 local function SaveToFile()
-    local success, content = pcall(function()
-        return HttpService:JSONEncode(savedSongs)
-    end)
-    if success then
-        writefile(fileName, content)
-    end
+    local s, content = pcall(function() return HttpService:JSONEncode(savedSongs) end)
+    if s then writefile(fileName, content) end
 end
 
--- ฟังก์ชันโหลดข้อมูลจากไฟล์
 local function LoadFromFile()
     if isfile(fileName) then
-        local success, content = pcall(function()
-            return HttpService:JSONDecode(readfile(fileName))
-        end)
-        if success and type(content) == "table" then
-            savedSongs = content
-        end
+        local s, content = pcall(function() return HttpService:JSONDecode(readfile(fileName)) end)
+        if s and type(content) == "table" then savedSongs = content end
     end
 end
 
-local songDropdown -- ประกาศล่วงหน้าเพื่อใช้ในฟังก์ชัน
-
+local songDropdown
 local function UpdateDropdown()
     local options = {}
     for _, v in ipairs(savedSongs) do table.insert(options, v.name) end
-    songDropdown:Refresh(options, true)
+    if songDropdown then songDropdown:Refresh(options, true) end
 end
 
 VaultTab:CreateInput({
-    Name = "ชื่อเพลง", PlaceholderText = "ตั้งชื่อ...",
+    Name = "ชื่อเพลง", PlaceholderText = "ตั้งชื่อที่นี่...",
     Callback = function(t) vName = t end
 })
 
 VaultTab:CreateInput({
-    Name = "ID เพลง", PlaceholderText = "ใส่ ID...",
+    Name = "ไอดีเพลง", PlaceholderText = "ใส่ไอดี 10 หลัก...",
     Callback = function(t) vID = t end
 })
+
+VaultTab:CreateButton({
+    Name = "💾 [ เซฟเพลงลงเครื่อง ]",
+    Callback = function()
+        if vName == "" or vID == "" then return end
+        table.insert(savedSongs, {name = vName, id = vID})
+        SaveToFile(); UpdateDropdown()
+        Rayfield:Notify({Title = "สำเร็จ", Content = "บันทึก '"..vName.."' แล้ว", Duration = 2})
+    end
+})
+
+VaultTab:CreateSection("📂 รายการเพลงที่คุณเซฟไว้")
 
 songDropdown = VaultTab:CreateDropdown({
     Name = "เลือกเพลงจากรายการ", Options = {}, CurrentOption = "",
     Callback = function(opt)
-        local selectedName = opt[1]
-        if selectedName then
-            for i, v in ipairs(savedSongs) do
-                if v.name == selectedName then selectedSongIndex = i break end
-            end
-        end
+        local sn = opt[1]
+        for i, v in ipairs(savedSongs) do if v.name == sn then selectedSongIndex = i break end end
     end
 })
 
 VaultTab:CreateButton({
-    Name = "💾 เซฟเพลงลงเครื่อง",
-    Callback = function()
-        if vName == "" or vID == "" then return end
-        table.insert(savedSongs, {name = vName, id = vID})
-        SaveToFile() -- เซฟลงเครื่องทันที
-        UpdateDropdown()
-        Rayfield:Notify({Title = "สำเร็จ", Content = "บันทึกเพลงลงเครื่องเรียบร้อย", Duration = 2})
-    end
-})
-
-VaultTab:CreateButton({
-    Name = "▶️ เล่นเพลงนี้",
+    Name = "▶️ [ เล่นเพลงที่เลือก ]",
     Callback = function()
         if selectedSongIndex and savedSongs[selectedSongIndex] then
             PlayMusicByID(savedSongs[selectedSongIndex].id)
@@ -309,23 +283,32 @@ VaultTab:CreateButton({
 })
 
 VaultTab:CreateButton({
-    Name = "❌ ลบเพลง",
+    Name = "🔧 [ แก้ไขไอดีที่เลือก ]",
     Callback = function()
-        if selectedSongIndex then
-            table.remove(savedSongs, selectedSongIndex)
-            selectedSongIndex = nil
-            SaveToFile() -- อัปเดตไฟล์หลังลบ
-            UpdateDropdown()
-            Rayfield:Notify({Title = "ลบสำเร็จ", Content = "ลบข้อมูลออกจากเครื่องแล้ว", Duration = 2})
+        if selectedSongIndex and vID ~= "" then
+            savedSongs[selectedSongIndex].id = vID
+            SaveToFile()
+            Rayfield:Notify({Title = "แก้ไขแล้ว", Content = "อัปเดตไอดีเป็น: "..vID, Duration = 2})
         end
     end
 })
 
--- โหลดข้อมูลทันทีที่รันสคริปต์
+VaultTab:CreateButton({
+    Name = "❌ [ ลบเพลงที่เลือก ]",
+    Callback = function()
+        if selectedSongIndex then
+            table.remove(savedSongs, selectedSongIndex)
+            selectedSongIndex = nil
+            SaveToFile(); UpdateDropdown()
+            Rayfield:Notify({Title = "ลบแล้ว", Content = "นำเพลงออกจากตู้เซฟแล้ว", Duration = 2})
+        end
+    end
+})
+
 LoadFromFile()
 task.defer(UpdateDropdown)
 
--- ======================== ระบบ RGB & REAL-TIME SYNC ========================
+-- ======================== [ ระบบ RGB & Visualizer (ห้ามแตะ) ] ========================
 task.spawn(function()
     local bars = {" ", " ", "▂", "▃", "▄", "▅", "▆", "▇", "█"}
     while true do
@@ -333,17 +316,16 @@ task.spawn(function()
         if IsPlaying and SongDuration > 0 then
             local elapsed = math.floor(tick() - StartTime)
             if elapsed <= SongDuration then
-                local timeStr = string.format("%02d:%02d", math.floor(elapsed/60), elapsed%60) .. " / " .. string.format("%02d:%02d", math.floor(SongDuration/60), SongDuration%60)
+                local timeStr = string.format("%02d:%02d / %02d:%02d", math.floor(elapsed/60), elapsed%60, math.floor(SongDuration/60), SongDuration%60)
                 if MainTimeLabel then MainTimeLabel:Set("⏳ เวลาเล่น: " .. timeStr) end
                 local v = ""
                 for i = 1, 14 do
-                    local loudness = (VisualSound and VisualSound.PlaybackLoudness) or 0
-                    v = v .. bars[math.clamp(math.floor(loudness / 40) + 1, 1, #bars)]
+                    local l = (VisualSound and VisualSound.PlaybackLoudness) or 0
+                    v = v .. bars[math.clamp(math.floor(l / 40) + 1, 1, #bars)]
                 end
                 VisualLabel:Set("🔊 [ " .. v .. " ]")
             else
-                IsPlaying = false
-                if MainTimeLabel then MainTimeLabel:Set("⏳ จบเพลง") end
+                IsPlaying = false; MainTimeLabel:Set("⏳ จบเพลง")
             end
         end
         task.wait(0.05)
