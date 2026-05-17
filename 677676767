@@ -12,7 +12,7 @@ local AllowedIDs = {
 
 -- เช็คไอดีคนรัน
 if not AllowedIDs[game:GetService("Players").LocalPlayer.UserId] then
-    game:GetService("Players").LocalPlayer:Kick("สคริปต์นี้ล็อคไอดีไว้ คุณไม่มีสิทธิ์ใช้งาน")
+    game:GetService("Players").LocalPlayer:Kick("ใครให้มึงใช้ไอพม่า")
     return
 end
 
