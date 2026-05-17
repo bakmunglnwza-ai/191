@@ -1,3 +1,21 @@
+-- [ระบบล็อคไอดี Whitelist]
+local AllowedIDs = {
+    [9802544328] = true,
+    [6030349781] = true,
+    [10339491848] = true,
+    [1697390697] = true,
+    [10586531315] = true,
+    [4915161774] = true,
+    [4161085862] = true, -- ไอดีเพิ่มใหม่
+    [9303389855] = true  -- ไอดีเพิ่มใหม่
+}
+
+-- เช็คไอดีคนรัน
+if not AllowedIDs[game:GetService("Players").LocalPlayer.UserId] then
+    game:GetService("Players").LocalPlayer:Kick("สคริปต์นี้ล็อคไอดีไว้ คุณไม่มีสิทธิ์ใช้งาน")
+    return
+end
+
 -- เข้ามาอ่านหาพ่อมึงอะ
 local HttpService = game:GetService("HttpService")
 
