@@ -39,6 +39,11 @@ local function fireAudioRemote(id)
 	toolEvent:FireServer(unpack(args))
 end
 
+local function fireRaw(id)
+	local args = {"ToolMusicText", id, [4] = true}
+	toolEvent:FireServer(unpack(args))
+end
+
 -- ══════════════════════════════════════
 -- PALETTE
 -- ══════════════════════════════════════
@@ -87,10 +92,11 @@ local sg = new("ScreenGui",{
 local W, H = 460, 360
 local main = new("Frame",{
 	Size=UDim2.fromOffset(W,H),
-	Position=UDim2.new(0.5,-W/2,1,-H-8),
+	Position=UDim2.new(0.5,-W/2,1, 8),
 	BackgroundColor3=C.BG,
 	BorderSizePixel=0,
 	ClipsDescendants=false,
+	Visible=false,
 }, sg)
 corner(14, main)
 stroke(C.BORDER, 1.5, main)
@@ -104,9 +110,9 @@ local _dragStart, _dragOrigin
 local toggleBtn = new("TextButton", {
 	Size            = UDim2.fromOffset(48, 48),
 	Position        = UDim2.new(1, -60, 1, -60),
-	BackgroundColor3 = C.PURPLE,
+	BackgroundColor3 = C.BG_DEEP,
 	BorderSizePixel  = 0,
-	Text            = "♪",
+	Text            = "×",
 	TextColor3      = C.WHITE,
 	TextSize        = 22,
 	Font            = Enum.Font.Code,
@@ -151,7 +157,7 @@ UIS.InputChanged:Connect(function(i)
 	end
 end)
 
-local guiOpen = true
+local guiOpen = false
 local _mainTween, _hideTask
 
 toggleBtn.MouseButton1Click:Connect(function()
@@ -376,7 +382,7 @@ local wavBox = new("Frame",{
 }, playPage)
 corner(8,wavBox); stroke(C.BORD_DIM,1,wavBox)
 
-local BAR_N = 36
+local BAR_N = 500
 local wBars = {}
 for i = 1, BAR_N do
 	local bw = 1/BAR_N
@@ -499,43 +505,44 @@ local barVal = {}
 for i = 1, BAR_N do barVal[i] = 0.04 end
 
 local isPlaying  = false
-local isLoading  = false
 local hasFiredStop = false
 local progConn   = nil
 local progVal    = 0
 local totalSec   = 180
 local currentId  = ""
 local sound      = nil
+local analyser   = nil
 
--- idle breathe
-RunService.Heartbeat:Connect(function()
-	if isPlaying then return end
-	local t = tick()
-	for i = 1, BAR_N do
-		local v = 0.03 + math.sin(t*1.1 + i*0.35)*0.02
-		barVal[i] = barVal[i] + (v - barVal[i]) * 0.1
-		wBars[i].Size = UDim2.new(1/BAR_N-0.004, 0, barVal[i], 0)
-		wBars[i].BackgroundColor3 = C.PURPLE
-	end
-end)
+local function isHoldingTool()
+	local char = player.Character
+	if not char then return false end
+	return char:FindFirstChildOfClass("Tool") ~= nil
+end
 
--- playing wave  (FIX: read loudness from the same sound object)
+-- ไม่มี idle breathe — แบนนิ่งตอนไม่เล่น
+
+-- playing wave — ขยับเฉพาะตอนถือ tool
 RunService.Heartbeat:Connect(function(dt)
 	if not isPlaying then return end
-	local loud = (sound and sound.Playing) and sound.PlaybackLoudness or 0
+	local holding = isHoldingTool()
+	local loud = (analyser and analyser.IsPlaying) and analyser.PlaybackLoudness or 0
 	local base = math.clamp(loud / 1000, 0, 1)
 	local t = tick()
 	for i = 1, BAR_N do
 		local p = barProfile[i]
-		local drift = math.sin(t * p.drift + p.phase) * 0.07 * base
-		local target = math.clamp(base * p.scale + drift, 0.03, 0.96)
-		barVal[i] = barVal[i] + (target - barVal[i]) * math.min(1, dt * p.speed)
+		if holding then
+			local drift = math.sin(t * p.drift + p.phase) * 0.07 * base
+			local target = math.clamp(base * p.scale + drift, 0.03, 0.96)
+			barVal[i] = barVal[i] + (target - barVal[i]) * math.min(1, dt * p.speed)
+		else
+			barVal[i] = barVal[i] + (0.04 - barVal[i]) * 0.1
+		end
 		local val = barVal[i]
 		wBars[i].Size = UDim2.new(1/BAR_N-0.004, 0, val, 0)
 		local r  = (124 + val*100) / 255
 		local g  = (58  + val*20)  / 255
 		local bv = (237 - val*60)  / 255
-		wBars[i].BackgroundColor3 = Color3.new(r, g, bv)
+		wBars[i].BackgroundColor3 = holding and Color3.new(r, g, bv) or C.PURPLE
 	end
 end)
 
@@ -548,9 +555,9 @@ local function stopPlay()
 	playBtn:FindFirstChildOfClass("UIStroke").Color = C.PUR_LT
 	statusLbl.Text = "PAUSED"
 	if sound then sound:Pause() end
+	if analyser then analyser:Pause() end
 	if progConn then progConn:Disconnect(); progConn = nil end
-	fireAudioRemote("105545520014338")
-	fireAudioRemote("0")
+	fireAudioRemote("84899763517255")
 end
 
 -- FIX: startPlay — guard against nil sound, resume correctly
@@ -563,11 +570,12 @@ local function startPlay()
 	playBtn:FindFirstChildOfClass("UIStroke").Color = Color3.fromHex("F87171")
 	statusLbl.Text = "PLAYING"
 
-	-- FIX: Resume if already started, else Play from beginning
-	if sound.TimePosition > 0 and not sound.Playing then
-		sound:Resume()
-	elseif not sound.Playing then
-		sound:Play()
+	-- เล่นจากต้นเสมอ
+	sound.TimePosition = 0
+	sound:Play()
+	if analyser then
+		analyser.TimePosition = 0
+		analyser:Play()
 	end
 
 	-- FIX: disconnect old progConn before creating a new one
@@ -592,53 +600,34 @@ local function startPlay()
 end
 
 local function onPlayPressed()
-	if isLoading then return end  -- FIX: block double-press while loading
-
 	local raw = idInput.Text:gsub("%D","")
+	if raw == "" then return end
 
-	if raw ~= "" and raw ~= currentId then
-		-- New ID — load fresh sound
+	if raw ~= currentId then
+		-- ID ใหม่
 		currentId = raw
 		progVal = 0
 		progFill.Size = UDim2.new(0,0,1,0)
 		timeLbl.Text = "0s / 0s"
 		for i=1,BAR_N do barVal[i]=0.04 end
 
-		-- FIX: stop & clean up previous sound before creating a new one
 		if isPlaying then stopPlay() end
 		if sound then sound:Destroy(); sound = nil end
+		if analyser then analyser:Destroy(); analyser = nil end
 
-		isLoading = true
-		statusLbl.Text = "LOADING..."
-		playBtn.BackgroundColor3 = C.BG_DEEP
-		playBtn.Text = "…"
+		sound = Instance.new("Sound")
+		sound.SoundId = "rbxassetid://" .. raw
+		sound.Volume  = 0
+		sound.Parent  = playPage
 
-		local newSound = Instance.new("Sound")
-		newSound.SoundId = "rbxassetid://" .. raw
-		newSound.Volume  = 0
-		newSound.Parent  = playPage
-		sound = newSound
+		analyser = Instance.new("Sound")
+		analyser.SoundId = "rbxassetid://" .. raw
+		analyser.Volume  = 0
+		analyser.Parent  = playPage
 
-		-- FIX: wait for the correct sound instance to load
-		newSound.Loaded:Connect(function()
-			-- Guard: user may have changed ID again while this was loading
-			if sound ~= newSound then return end
-
-			isLoading = false
-			totalSec  = math.max(1, math.floor(newSound.TimeLength))
-			timeLbl.Text = "0s / " .. totalSec .. "s"
-			statusLbl.Text = "LOADED"
-			playBtn.BackgroundColor3 = C.PURPLE
-			playBtn.Text = "▶"
-			startPlay()
-		end)
-
-	elseif raw == "" then
-		-- No ID typed — do nothing
-		return
-
+		startPlay()
 	else
-		-- Same ID — toggle play/pause
+		-- ID เดิม — toggle
 		if isPlaying then
 			stopPlay()
 		else
