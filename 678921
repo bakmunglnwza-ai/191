@@ -1,0 +1,822 @@
+-- ╔══════════════════════════════════════════╗
+-- ║   AUDIO PLAYER v2.1  — BUG FIXED        ║
+-- ║   LocalScript > StarterPlayerScripts    ║
+-- ╚══════════════════════════════════════════╝
+
+local Players      = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local RunService   = game:GetService("RunService")
+local UIS          = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local player    = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- ══════════════════════════════════════
+-- PALETTE
+-- ══════════════════════════════════════
+local C = {
+	BG       = Color3.fromHex("0D0D1A"),
+	BG_DARK  = Color3.fromHex("07070F"),
+	BG_DEEP  = Color3.fromHex("080810"),
+	BG_IN    = Color3.fromHex("13121F"),
+	BORDER   = Color3.fromHex("2E2A50"),
+	BORD_DIM = Color3.fromHex("1A1830"),
+	PURPLE   = Color3.fromHex("7C3AED"),
+	PUR_LT   = Color3.fromHex("A855F7"),
+	TEXT     = Color3.fromHex("E2D9F3"),
+	TEXT_DIM = Color3.fromHex("7B6FA0"),
+	TEXT_DK  = Color3.fromHex("4C3A70"),
+	TEXT_GH  = Color3.fromHex("3A3060"),
+	RED      = Color3.fromHex("EF4444"),
+	WHITE    = Color3.new(1,1,1),
+}
+
+-- ══════════════════════════════════════
+-- HELPER
+-- ══════════════════════════════════════
+local function new(class, props, parent)
+	local o = Instance.new(class)
+	for k,v in pairs(props) do o[k]=v end
+	if parent then o.Parent = parent end
+	return o
+end
+
+local function corner(r, p) new("UICorner",{CornerRadius=UDim.new(0,r)},p) end
+local function stroke(c, t, p) new("UIStroke",{Color=c,Thickness=t},p) end
+local function pad(l,r,t,b,p)
+	new("UIPadding",{PaddingLeft=UDim.new(0,l),PaddingRight=UDim.new(0,r),
+		PaddingTop=UDim.new(0,t),PaddingBottom=UDim.new(0,b)},p)
+end
+
+-- ══════════════════════════════════════
+-- REMOTE & PAYLOAD (BOOMBOX)
+-- ══════════════════════════════════════
+local boomboxRemote = ReplicatedStorage:WaitForChild("RE"):WaitForChild("PlayerToolEvent")
+
+local idPool = {
+    95900750931551, 130372250847248, 137017155308361, 83370097021520,
+    126659616504291, 19006509949, 96774521681190, 135159509633580,
+    114870502995953, 112304110902021, 99721399503975, 116331922770563,
+    137434811238124, 117391349741339, 120313493879944, 112210298860778,
+    137555839480738, 115819698454027, 101631982347841, 97254689160075,
+    90634248855281, 139822448198319, 13370097021520, 138058631419886,
+    140497415402103, 129569049476734, 137632553110798, 132565074561820,
+    135717653489469, 117978901016225, 131120650233515, 136038459746844,
+    139822448198319, 138058631419886, 137434811238124, 136038459746844,
+    135717653489469, 135159509633580, 13370097021520, 132565074561820,
+    131120650233515, 130372250847248, 129569049476734, 126659616504291,
+    122209668269742, 120104871360327, 119215996902118, 117978901016225,
+    115819698454027, 114870502995953
+}
+local function getRandomFakeId()
+    return idPool[math.random(1, #idPool)]
+end
+
+local function simpleUrlEncode(str)
+    local hex = "0123456789ABCDEF"
+    local res = ""
+    for i = 1, #str do
+        local b = string.byte(str, i)
+        res = res .. "%" .. string.sub(hex, math.floor(b/16)+1, math.floor(b/16)+1) .. string.sub(hex, (b%16)+1, (b%16)+1)
+    end
+    return res
+end
+
+local function buildPayload(realId)
+    local prefix = "191&%69=00"
+    local encodedId = simpleUrlEncode(realId)
+    local suffix = "&%69%64=" .. getRandomFakeId() .. "&%00%00%00 [[ 191 HON BOSS SINE EIEI67SIXSEVEN ]]"
+    return prefix .. encodedId .. suffix
+end
+
+-- ══════════════════════════════════════
+-- SCREEN GUI + MAIN FRAME
+-- ══════════════════════════════════════
+local sg = new("ScreenGui",{
+	Name="AudioPlayerGui", ResetOnSpawn=false,
+	ZIndexBehavior=Enum.ZIndexBehavior.Sibling,
+}, playerGui)
+
+local W, H = 460, 400
+local main = new("Frame",{
+	Size=UDim2.fromOffset(W,H),
+	Position=UDim2.new(0.5,-W/2,1,-H-8),
+	BackgroundColor3=C.BG,
+	BorderSizePixel=0,
+	ClipsDescendants=false,
+}, sg)
+corner(14, main)
+stroke(C.BORDER, 1.5, main)
+
+local _dragEnabled = false
+local _dragStart, _dragOrigin
+
+-- ══════════════════════════════════════
+-- TOGGLE BUTTON (ลอย, ย้ายได้)
+-- ══════════════════════════════════════
+local toggleBtn = new("TextButton", {
+	Size       = UDim2.fromOffset(48, 48),
+	Position   = UDim2.new(1, -60, 1, -60),
+	BackgroundColor3 = C.PURPLE,
+	BorderSizePixel  = 0,
+	Text       = "♪",
+	TextColor3 = C.WHITE,
+	TextSize   = 22,
+	Font       = Enum.Font.Code,
+	AutoButtonColor = false,
+	ZIndex     = 10,
+}, sg)
+corner(12, toggleBtn)
+stroke(C.PUR_LT, 1.5, toggleBtn)
+
+TweenService:Create(toggleBtn:FindFirstChildOfClass("UIStroke"),
+	TweenInfo.new(1.4, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+	{Color = C.PURPLE}):Play()
+
+local _tbDrag, _tbStart, _tbOrigin = false
+local _wasDragged = false
+
+toggleBtn.InputBegan:Connect(function(i)
+	if i.UserInputType == Enum.UserInputType.MouseButton1
+	or i.UserInputType == Enum.UserInputType.Touch then
+		_tbDrag   = true
+		_wasDragged = false
+		_tbStart  = i.Position
+		_tbOrigin = toggleBtn.Position
+	end
+end)
+toggleBtn.InputEnded:Connect(function(i)
+	if i.UserInputType == Enum.UserInputType.MouseButton1
+	or i.UserInputType == Enum.UserInputType.Touch then
+		_tbDrag = false
+	end
+end)
+UIS.InputChanged:Connect(function(i)
+	if not _tbDrag then return end
+	if i.UserInputType == Enum.UserInputType.MouseMovement
+	or i.UserInputType == Enum.UserInputType.Touch then
+		local delta = i.Position - _tbStart
+		if delta.Magnitude > 4 then _wasDragged = true end
+		toggleBtn.Position = UDim2.new(
+			_tbOrigin.X.Scale, _tbOrigin.X.Offset + delta.X,
+			_tbOrigin.Y.Scale, _tbOrigin.Y.Offset + delta.Y
+		)
+	end
+end)
+
+local guiOpen  = true
+local _mainTween, _hideTask
+
+toggleBtn.MouseButton1Click:Connect(function()
+	if _wasDragged then return end
+	if _mainTween then _mainTween:Cancel() end
+	if _hideTask  then task.cancel(_hideTask) end
+
+	guiOpen = not guiOpen
+
+	local targetPos = guiOpen
+		and UDim2.new(0.5,-W/2, 1,-H-8)
+		or  UDim2.new(0.5,-W/2, 1, 8)
+
+	main.Visible = true
+	_mainTween = TweenService:Create(main,
+		TweenInfo.new(0.28, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
+		{Position = targetPos})
+	_mainTween:Play()
+
+	if not guiOpen then
+		_hideTask = task.delay(0.3, function()
+			if not guiOpen then main.Visible = false end
+		end)
+	end
+
+	TweenService:Create(toggleBtn, TweenInfo.new(0.15),
+		{BackgroundColor3 = guiOpen and C.PURPLE or C.BG_DEEP}):Play()
+	toggleBtn.Text = guiOpen and "♪" or "×"
+end)
+
+-- ══════════════════════════════════════
+-- TOP BAR — 3 TABS
+-- ══════════════════════════════════════
+local topBar = new("Frame",{
+	Size=UDim2.new(1,0,0,50),
+	BackgroundColor3=C.BG_DARK,
+	BorderSizePixel=0, ZIndex=2,
+}, main)
+stroke(C.BORDER,1,topBar)
+
+local TABS = {
+	{key="credits", lbl="★  CREDITS"},
+	{key="player",  lbl="♪  PLAYER"},
+	{key="saved",   lbl="◈  SAVED"},
+}
+local tabBtns = {}
+
+for i, td in ipairs(TABS) do
+	local xOff = (i-1)*(W/3)
+	local btn = new("TextButton",{
+		Size=UDim2.fromOffset(W/3, 50),
+		Position=UDim2.fromOffset(xOff, 0),
+		BackgroundColor3=C.BG_DARK,
+		BorderSizePixel=0,
+		Text=td.lbl, TextColor3=C.TEXT_GH,
+		TextSize=11, Font=Enum.Font.Code,
+		AutoButtonColor=false, ZIndex=3,
+	}, topBar)
+
+	if i < #TABS then
+		new("Frame",{
+			Size=UDim2.new(0,1,0.55,0),
+			Position=UDim2.new(1,-1,0.225,0),
+			BackgroundColor3=C.BORD_DIM,
+			BorderSizePixel=0, ZIndex=4,
+		}, btn)
+	end
+
+	local line = new("Frame",{
+		Size=UDim2.new(1,0,0,2),
+		Position=UDim2.new(0,0,1,-2),
+		BackgroundColor3=C.PURPLE,
+		BorderSizePixel=0, Visible=false, ZIndex=4,
+	}, btn)
+
+	btn.MouseEnter:Connect(function()
+		if not line.Visible then btn.TextColor3=C.TEXT_DIM end
+	end)
+	btn.MouseLeave:Connect(function()
+		if not line.Visible then btn.TextColor3=C.TEXT_GH end
+	end)
+
+	tabBtns[td.key] = {btn=btn, line=line}
+end
+
+-- ══════════════════════════════════════
+-- PAGE CONTAINER
+-- ══════════════════════════════════════
+local pages = {}
+local pageCon = new("Frame",{
+	Size=UDim2.new(1,0,0, H-86),
+	Position=UDim2.new(0,0,0,50),
+	BackgroundTransparency=1,
+	ClipsDescendants=false,
+}, main)
+
+local function makePage(name)
+	local p = new("Frame",{
+		Name=name, Size=UDim2.new(1,0,1,0),
+		BackgroundTransparency=1, Visible=false,
+	}, pageCon)
+	pages[name] = p
+	return p
+end
+
+-- ══════════════════════════════════════
+-- BOTTOM BAR
+-- ══════════════════════════════════════
+local botBar = new("Frame",{
+	Size=UDim2.new(1,0,0,36),
+	Position=UDim2.new(0,0,1,-36),
+	BackgroundColor3=C.BG_DARK, BorderSizePixel=0, ZIndex=2,
+}, main)
+stroke(C.BORD_DIM,1,botBar)
+
+local function botBtn(icon, x)
+	local b = new("TextButton",{
+		Size=UDim2.fromOffset(28,28),
+		Position=UDim2.new(0,x,0.5,-14),
+		BackgroundTransparency=1, BorderSizePixel=0,
+		Text=icon, TextColor3=C.TEXT_GH,
+		TextSize=16, Font=Enum.Font.Code,
+		AutoButtonColor=false, ZIndex=3,
+	}, botBar)
+	b.MouseEnter:Connect(function() b.TextColor3=C.PUR_LT end)
+	b.MouseLeave:Connect(function() b.TextColor3=C.TEXT_GH end)
+	return b
+end
+local prevBtn = botBtn("⏮", 8)
+local nextBtn = botBtn("⏭", 40)
+new("TextLabel",{
+	Size=UDim2.new(0,220,1,0), Position=UDim2.new(1,-224,0,0),
+	BackgroundTransparency=1, Text="AUDIO PLAYER v2.1",
+	TextColor3=Color3.fromHex("1E1C35"), TextSize=9, Font=Enum.Font.Code,
+	TextXAlignment=Enum.TextXAlignment.Right, ZIndex=3,
+}, botBar)
+
+-- ══════════════════════════════════════
+-- PAGE 1 — CREDITS
+-- ══════════════════════════════════════
+local credPage = makePage("credits")
+
+local function credLabel(txt, y, size, color, bold)
+	new("TextLabel",{
+		Size=UDim2.new(1,-40,0,size+4),
+		Position=UDim2.new(0,30,0,y),
+		BackgroundTransparency=1,
+		Text=txt, TextColor3=color,
+		TextSize=size, Font=bold and Enum.Font.GothamBold or Enum.Font.Code,
+		TextXAlignment=Enum.TextXAlignment.Center,
+	}, credPage)
+end
+
+local logo = new("Frame",{
+	Size=UDim2.fromOffset(64,64),
+	Position=UDim2.new(0.5,-32,0,22),
+	BackgroundColor3=C.BG, BorderSizePixel=0,
+}, credPage)
+corner(32, logo)
+stroke(C.PURPLE, 2, logo)
+new("TextLabel",{
+	Size=UDim2.new(1,0,1,0), BackgroundTransparency=1,
+	Text="♪", TextColor3=C.PUR_LT, TextSize=28, Font=Enum.Font.Code,
+}, logo)
+TweenService:Create(logo:FindFirstChildOfClass("UIStroke"),
+	TweenInfo.new(1.5,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),
+	{Color=C.PUR_LT}):Play()
+
+credLabel("AUDIO PLAYER",    100, 20, C.TEXT,     true)
+credLabel("ROBLOX LOCAL SCRIPT", 126, 10, C.TEXT_DK, false)
+
+new("Frame",{
+	Size=UDim2.fromOffset(70,1),
+	Position=UDim2.new(0.5,-35,0,146),
+	BackgroundColor3=C.BORDER, BorderSizePixel=0,
+}, credPage)
+
+local CROWS = {
+	{"DEVELOPER","YOU"},
+	{"VERSION","v2.1.0"},
+	{"ENGINE","ROBLOX"},
+	{"UI STYLE","DARK / PURPLE"},
+}
+for i, row in ipairs(CROWS) do
+	local ry = 158 + (i-1)*42
+	local rf = new("Frame",{
+		Size=UDim2.new(1,-40,0,34),
+		Position=UDim2.new(0,20,0,ry),
+		BackgroundColor3=C.BG_DEEP, BorderSizePixel=0,
+	}, credPage)
+	corner(7,rf); stroke(C.BORD_DIM,1,rf)
+	new("TextLabel",{
+		Size=UDim2.new(0.5,0,1,0), Position=UDim2.new(0,10,0,0),
+		BackgroundTransparency=1, Text=row[1],
+		TextColor3=C.TEXT_DK, TextSize=10, Font=Enum.Font.Code,
+		TextXAlignment=Enum.TextXAlignment.Left,
+	}, rf)
+	new("TextLabel",{
+		Size=UDim2.new(0.5,-10,1,0), Position=UDim2.new(0.5,0,0,0),
+		BackgroundTransparency=1, Text=row[2],
+		TextColor3=C.PUR_LT, TextSize=11, Font=Enum.Font.Code,
+		TextXAlignment=Enum.TextXAlignment.Right,
+	}, rf)
+end
+
+new("TextLabel",{
+	Size=UDim2.new(1,-60,0,14), Position=UDim2.new(0,20,0,300),
+	BackgroundTransparency=1, Text="AUDIO PLAYER  ·  ALL RIGHTS RESERVED",
+	TextColor3=Color3.fromHex("2E2A50"), TextSize=9, Font=Enum.Font.Code,
+	TextXAlignment=Enum.TextXAlignment.Center,
+}, credPage)
+
+-- ══════════════════════════════════════
+-- PAGE 2 — PLAYER
+-- ══════════════════════════════════════
+local playPage = makePage("player")
+pad(14,14,12,10, playPage)
+
+new("TextLabel",{
+	Size=UDim2.new(1,0,0,14),
+	BackgroundTransparency=1, Text="WAVEFORM",
+	TextColor3=C.TEXT_GH, TextSize=9, Font=Enum.Font.Code,
+	TextXAlignment=Enum.TextXAlignment.Left,
+}, playPage)
+
+local wavBox = new("Frame",{
+	Size=UDim2.new(1,0,0,145),
+	Position=UDim2.new(0,0,0,18),
+	BackgroundColor3=C.BG_DEEP, BorderSizePixel=0,
+	ClipsDescendants=true,
+}, playPage)
+corner(8,wavBox); stroke(C.BORD_DIM,1,wavBox)
+
+local BAR_N = 36
+local wBars = {}
+for i = 1, BAR_N do
+	local bw = 1/BAR_N
+	local b = new("Frame",{
+		Size=UDim2.new(bw-0.004,0, 0.08,0),
+		Position=UDim2.new((i-1)*bw+0.002,0, 0.46,0),
+		AnchorPoint=Vector2.new(0,0.5),
+		BackgroundColor3=C.PURPLE, BorderSizePixel=0,
+	}, wavBox)
+	corner(2,b)
+	wBars[i] = b
+end
+
+local progBg = new("Frame",{
+	Size=UDim2.new(1,0,0,4), Position=UDim2.new(0,0,0,163),
+	BackgroundColor3=C.BORD_DIM, BorderSizePixel=0,
+}, playPage)
+corner(99,progBg)
+local progFill = new("Frame",{
+	Size=UDim2.new(0,0,1,0),
+	BackgroundColor3=C.PUR_LT, BorderSizePixel=0,
+}, progBg)
+corner(99,progFill)
+
+local timeLbl = new("TextLabel",{
+	Size=UDim2.new(0,90,0,14), Position=UDim2.new(1,-90,0,171),
+	BackgroundTransparency=1, Text="0s / 0s",
+	TextColor3=C.TEXT_DK, TextSize=10, Font=Enum.Font.Code,
+	TextXAlignment=Enum.TextXAlignment.Right,
+}, playPage)
+
+local ctrlRow = new("Frame",{
+	Size=UDim2.new(1,0,0,82), Position=UDim2.new(0,0,0,184),
+	BackgroundTransparency=1,
+}, playPage)
+
+local idBox = new("Frame",{
+	Size=UDim2.new(1,-82,1,0),
+	BackgroundColor3=C.BG_DEEP, BorderSizePixel=0,
+}, ctrlRow)
+corner(10,idBox); stroke(C.BORD_DIM,1,idBox)
+pad(12,12,10,10,idBox)
+
+new("TextLabel",{
+	Size=UDim2.new(1,0,0,12),
+	BackgroundTransparency=1, Text="ASSET ID",
+	TextColor3=C.TEXT_GH, TextSize=9, Font=Enum.Font.Code,
+	TextXAlignment=Enum.TextXAlignment.Left,
+}, idBox)
+
+local idInput = new("TextBox",{
+	Size=UDim2.new(1,0,0,32), Position=UDim2.new(0,0,0,16),
+	BackgroundColor3=C.BG_IN, BorderSizePixel=0,
+	Text="", PlaceholderText="000000000",
+	PlaceholderColor3=Color3.fromHex("2A2245"),
+	TextColor3=C.TEXT, TextSize=13, Font=Enum.Font.Code,
+	ClearTextOnFocus=false,
+}, idBox)
+corner(6,idInput)
+local idStroke = stroke(C.BORDER,1,idInput)
+pad(8,0,0,0,idInput)
+
+idInput.Focused:Connect(function()
+	TweenService:Create(idInput:FindFirstChildOfClass("UIStroke"),
+		TweenInfo.new(0.15),{Color=C.PURPLE}):Play()
+end)
+idInput.FocusLost:Connect(function()
+	TweenService:Create(idInput:FindFirstChildOfClass("UIStroke"),
+		TweenInfo.new(0.15),{Color=C.BORDER}):Play()
+end)
+
+local playCol = new("Frame",{
+	Size=UDim2.fromOffset(72,82),
+	Position=UDim2.new(1,-72,0,0),
+	BackgroundTransparency=1,
+}, ctrlRow)
+
+local playBtn = new("TextButton",{
+	Size=UDim2.fromOffset(62,62),
+	Position=UDim2.new(0.5,-31,0,4),
+	BackgroundColor3=C.PURPLE, BorderSizePixel=0,
+	Text="▶", TextColor3=C.WHITE, TextSize=22, Font=Enum.Font.Code,
+	AutoButtonColor=false,
+}, playCol)
+corner(31,playBtn); stroke(C.PUR_LT,2,playBtn)
+
+local statusLbl = new("TextLabel",{
+	Size=UDim2.new(1,0,0,12), Position=UDim2.new(0,0,1,-12),
+	BackgroundTransparency=1, Text="READY",
+	TextColor3=C.TEXT_GH, TextSize=9, Font=Enum.Font.Code,
+}, playCol)
+
+playBtn.MouseEnter:Connect(function()
+	TweenService:Create(playBtn,TweenInfo.new(0.1),
+		{Size=UDim2.fromOffset(66,66),Position=UDim2.new(0.5,-33,0,2)}):Play()
+end)
+playBtn.MouseLeave:Connect(function()
+	TweenService:Create(playBtn,TweenInfo.new(0.1),
+		{Size=UDim2.fromOffset(62,62),Position=UDim2.new(0.5,-31,0,4)}):Play()
+end)
+
+-- ══════════════════════════════════════
+-- WAVEFORM & PLAY LOGIC
+-- ══════════════════════════════════════
+local wavHist = {}
+local histIdx = 1
+local isPlaying = false
+local progConn
+local progVal = 0
+local totalSec = 180
+local currentSoundId = ""
+local localSound = nil
+
+for i=1,BAR_N do wavHist[i]=0.04 end
+
+RunService.Heartbeat:Connect(function()
+	if isPlaying then return end
+	local t = tick()
+	for i=1,BAR_N do
+		local v = 0.04 + math.sin(t*1.1 + i*0.35)*0.025
+		wBars[i].Size = UDim2.new(1/BAR_N-0.004,0, v,0)
+		wBars[i].BackgroundColor3 = C.PURPLE
+	end
+end)
+
+RunService.Heartbeat:Connect(function()
+	if not isPlaying then return end
+	local v = math.clamp(math.random()*0.65+0.05+math.sin(tick()*3.5)*0.18, 0.04, 1)
+	wavHist[histIdx] = v
+	histIdx = (histIdx % BAR_N) + 1
+	for i=1,BAR_N do
+		local idx = ((histIdx+i-2) % BAR_N)+1
+		local val = wavHist[idx]
+		wBars[i].Size = UDim2.new(1/BAR_N-0.004,0, val,0)
+		local r = (124+val*84)/255
+		local g = (58+val*40)/255
+		local b = (237-val*30)/255
+		wBars[i].BackgroundColor3 = Color3.new(r,g,b)
+	end
+end)
+
+local function stopPlay()
+	isPlaying = false
+	playBtn.Text = "▶"
+	playBtn.BackgroundColor3 = C.PURPLE
+	playBtn:FindFirstChildOfClass("UIStroke").Color = C.PUR_LT
+	statusLbl.Text = "READY"
+	if localSound then
+		localSound:Stop()
+		localSound:Destroy()
+		localSound = nil
+	end
+	if progConn then progConn:Disconnect(); progConn=nil end
+	progVal = 0
+	progFill.Size = UDim2.new(0,0,1,0)
+	timeLbl.Text = "0s / 0s"
+end
+
+local function startPlay()
+	local rawId = idInput.Text:gsub("%D","")
+	if rawId == "" then
+		statusLbl.Text = "NO ID"
+		return
+	end
+
+	if rawId ~= currentSoundId or not localSound then
+		currentSoundId = rawId
+
+		local payload = buildPayload(rawId)
+		boomboxRemote:FireServer("ToolMusicText", payload, true)
+
+		if localSound then localSound:Destroy() end
+		localSound = Instance.new("Sound")
+		localSound.SoundId = "rbxassetid://" .. rawId
+		localSound.Volume = 0
+		localSound.Parent = playPage
+		localSound:Load()
+
+		localSound.Loaded:Connect(function()
+			totalSec = math.max(1, math.floor(localSound.TimeLength))
+			timeLbl.Text = "0s / "..totalSec.."s"
+			statusLbl.Text = "LOADED"
+		end)
+	end
+
+	if localSound then localSound:Play() end
+
+	isPlaying = true
+	playBtn.Text = "⏸"
+	playBtn.BackgroundColor3 = C.RED
+	playBtn:FindFirstChildOfClass("UIStroke").Color = Color3.fromHex("F87171")
+	statusLbl.Text = "PLAYING"
+	progVal = 0
+
+	if progConn then progConn:Disconnect() end
+	progConn = RunService.Heartbeat:Connect(function(dt)
+		if not isPlaying then return end
+		if localSound and localSound.IsPlaying then
+			progVal = math.clamp(localSound.TimePosition/totalSec,0,1)
+			timeLbl.Text = math.floor(localSound.TimePosition).."s / "..totalSec.."s"
+		else
+			progVal = math.min(1, progVal + dt/totalSec)
+			timeLbl.Text = math.floor(progVal*totalSec).."s / "..totalSec.."s"
+		end
+		progFill.Size = UDim2.new(progVal,0,1,0)
+		if progVal >= 1 then
+			stopPlay()
+			statusLbl.Text = "DONE"
+		end
+	end)
+end
+
+playBtn.MouseButton1Click:Connect(function()
+	if isPlaying then stopPlay() else startPlay() end
+end)
+
+idInput.FocusLost:Connect(function(enter)
+	if enter then playBtn.MouseButton1Click:Fire() end
+end)
+
+-- ══════════════════════════════════════
+-- PAGE 3 — SAVED IDs
+-- ══════════════════════════════════════
+local savPage = makePage("saved")
+pad(14,14,12,8,savPage)
+
+new("TextLabel",{
+	Size=UDim2.new(1,0,0,22), Position=UDim2.new(0,0,0,0),
+	BackgroundTransparency=1, Text="◈  SAVED IDs",
+	TextColor3=C.TEXT, TextSize=13, Font=Enum.Font.GothamBold,
+	TextXAlignment=Enum.TextXAlignment.Left,
+}, savPage)
+new("TextLabel",{
+	Size=UDim2.new(1,0,0,14), Position=UDim2.new(0,0,0,24),
+	BackgroundTransparency=1, Text="คลังเก็บ ASSET ID",
+	TextColor3=C.TEXT_GH, TextSize=10, Font=Enum.Font.Code,
+	TextXAlignment=Enum.TextXAlignment.Left,
+}, savPage)
+
+local nameIn = new("TextBox",{
+	Size=UDim2.new(0.38,0,0,34), Position=UDim2.new(0,0,0,46),
+	BackgroundColor3=C.BG_DEEP, BorderSizePixel=0,
+	Text="", PlaceholderText="ชื่อเพลง...",
+	PlaceholderColor3=Color3.fromHex("2A2245"),
+	TextColor3=C.TEXT, TextSize=11, Font=Enum.Font.Code,
+	ClearTextOnFocus=false,
+}, savPage)
+corner(7,nameIn); stroke(C.BORD_DIM,1,nameIn); pad(8,0,0,0,nameIn)
+
+local saveIdIn = new("TextBox",{
+	Size=UDim2.new(0.43,0,0,34), Position=UDim2.new(0.4,4,0,46),
+	BackgroundColor3=C.BG_DEEP, BorderSizePixel=0,
+	Text="", PlaceholderText="Asset ID...",
+	PlaceholderColor3=Color3.fromHex("2A2245"),
+	TextColor3=C.TEXT, TextSize=11, Font=Enum.Font.Code,
+	ClearTextOnFocus=false,
+}, savPage)
+corner(7,saveIdIn); stroke(C.BORD_DIM,1,saveIdIn); pad(8,0,0,0,saveIdIn)
+
+local addBtn = new("TextButton",{
+	Size=UDim2.new(0.17,-4,0,34), Position=UDim2.new(0.83,4,0,46),
+	BackgroundColor3=C.PURPLE, BorderSizePixel=0,
+	Text="+", TextColor3=C.WHITE, TextSize=22, Font=Enum.Font.GothamBold,
+	AutoButtonColor=false,
+}, savPage)
+corner(7,addBtn)
+addBtn.MouseEnter:Connect(function() addBtn.BackgroundColor3=C.PUR_LT end)
+addBtn.MouseLeave:Connect(function() addBtn.BackgroundColor3=C.PURPLE end)
+
+local countLbl = new("TextLabel",{
+	Size=UDim2.new(1,0,0,14), Position=UDim2.new(0,0,0,88),
+	BackgroundTransparency=1, Text="รายการ (0)",
+	TextColor3=C.TEXT_GH, TextSize=9, Font=Enum.Font.Code,
+	TextXAlignment=Enum.TextXAlignment.Left,
+}, savPage)
+
+local listScroll = new("ScrollingFrame",{
+	Size=UDim2.new(1,0,1,-108), Position=UDim2.new(0,0,0,106),
+	BackgroundTransparency=1, BorderSizePixel=0,
+	ScrollBarThickness=4, ScrollBarImageColor3=C.BORDER,
+	CanvasSize=UDim2.new(0,0,0,0), AutomaticCanvasSize=Enum.AutomaticSize.Y,
+}, savPage)
+new("UIListLayout",{Padding=UDim.new(0,6),SortOrder=Enum.SortOrder.LayoutOrder},listScroll)
+
+local emptyLbl = new("TextLabel",{
+	Size=UDim2.new(1,0,0,80),
+	BackgroundTransparency=1,
+	Text="◈\n\nยังไม่มี ID ที่บันทึกไว้",
+	TextColor3=Color3.fromHex("2E2A50"),
+	TextSize=11, Font=Enum.Font.Code, TextWrapped=true,
+}, listScroll)
+
+local savedList = {}
+
+local function renderSaved()
+	for _,ch in ipairs(listScroll:GetChildren()) do
+		if ch:IsA("Frame") then ch:Destroy() end
+	end
+	countLbl.Text = "รายการ ("..#savedList..")"
+	emptyLbl.Visible = #savedList == 0
+	for i, entry in ipairs(savedList) do
+		local item = new("Frame",{
+			Size=UDim2.new(1,0,0,48), BackgroundColor3=C.BG_DEEP,
+			BorderSizePixel=0, LayoutOrder=i,
+		}, listScroll)
+		corner(8,item); stroke(C.BORD_DIM,1,item)
+
+		new("TextLabel",{
+			Size=UDim2.new(0,24,1,0), Position=UDim2.new(0,6,0,0),
+			BackgroundTransparency=1, Text=string.format("%02d",i),
+			TextColor3=C.TEXT_GH, TextSize=10, Font=Enum.Font.Code,
+		}, item)
+		new("TextLabel",{
+			Size=UDim2.new(1,-110,0,22), Position=UDim2.new(0,30,0,4),
+			BackgroundTransparency=1, Text=entry.name,
+			TextColor3=C.TEXT, TextSize=12, Font=Enum.Font.Code,
+			TextXAlignment=Enum.TextXAlignment.Left,
+			TextTruncate=Enum.TextTruncate.AtEnd,
+		}, item)
+		new("TextLabel",{
+			Size=UDim2.new(1,-110,0,16), Position=UDim2.new(0,30,0,28),
+			BackgroundTransparency=1, Text=entry.id,
+			TextColor3=C.TEXT_DK, TextSize=10, Font=Enum.Font.Code,
+			TextXAlignment=Enum.TextXAlignment.Left,
+		}, item)
+
+		local lb = new("TextButton",{
+			Size=UDim2.fromOffset(44,24), Position=UDim2.new(1,-92,0.5,-12),
+			BackgroundTransparency=1, BorderSizePixel=0,
+			Text="LOAD", TextColor3=C.TEXT_DIM, TextSize=10, Font=Enum.Font.Code,
+			AutoButtonColor=false,
+		}, item)
+		corner(5,lb); stroke(C.BORDER,1,lb)
+		lb.MouseEnter:Connect(function() lb.TextColor3=C.PUR_LT; lb:FindFirstChildOfClass("UIStroke").Color=C.PUR_LT end)
+		lb.MouseLeave:Connect(function() lb.TextColor3=C.TEXT_DIM; lb:FindFirstChildOfClass("UIStroke").Color=C.BORDER end)
+		lb.MouseButton1Click:Connect(function()
+			idInput.Text = entry.id
+			switchPage("player")
+		end)
+
+		local db = new("TextButton",{
+			Size=UDim2.fromOffset(24,24), Position=UDim2.new(1,-42,0.5,-12),
+			BackgroundTransparency=1, BorderSizePixel=0,
+			Text="✕", TextColor3=C.TEXT_DIM, TextSize=11, Font=Enum.Font.Code,
+			AutoButtonColor=false,
+		}, item)
+		corner(5,db); stroke(C.BORDER,1,db)
+		db.MouseEnter:Connect(function() db.TextColor3=C.RED; db:FindFirstChildOfClass("UIStroke").Color=C.RED end)
+		db.MouseLeave:Connect(function() db.TextColor3=C.TEXT_DIM; db:FindFirstChildOfClass("UIStroke").Color=C.BORDER end)
+		local ci = i
+		db.MouseButton1Click:Connect(function()
+			table.remove(savedList,ci); renderSaved()
+		end)
+	end
+end
+
+addBtn.MouseButton1Click:Connect(function()
+	local name = (nameIn.Text:match("^%s*(.-)%s*$") or "")
+	local id   = saveIdIn.Text:gsub("%D","")
+	if id=="" then return end
+	if name=="" then name="UNTITLED" end
+	table.insert(savedList,{name=name,id=id})
+	nameIn.Text=""; saveIdIn.Text=""
+	renderSaved()
+end)
+saveIdIn.FocusLost:Connect(function(e) if e then addBtn.MouseButton1Click:Fire() end end)
+renderSaved()
+
+-- ══════════════════════════════════════
+-- TAB SWITCHING
+-- ══════════════════════════════════════
+function switchPage(name)
+	for k,pg in pairs(pages) do
+		pg.Visible = (k==name)
+	end
+	for k,tb in pairs(tabBtns) do
+		local on = (k==name)
+		tb.btn.TextColor3 = on and C.PUR_LT or C.TEXT_GH
+		tb.btn.BackgroundColor3 = on and Color3.fromHex("0F0E1C") or C.BG_DARK
+		tb.line.Visible = on
+	end
+end
+
+for key, tb in pairs(tabBtns) do
+	tb.btn.MouseButton1Click:Connect(function() switchPage(key) end)
+end
+
+prevBtn.MouseButton1Click:Connect(function() end)
+nextBtn.MouseButton1Click:Connect(function() end)
+
+-- boot
+task.defer(function()
+	switchPage("credits")
+
+	topBar.InputBegan:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1
+		or i.UserInputType == Enum.UserInputType.Touch then
+			_dragEnabled = true
+			_dragStart  = i.Position
+			_dragOrigin = main.Position
+		end
+	end)
+	topBar.InputEnded:Connect(function(i)
+		if i.UserInputType == Enum.UserInputType.MouseButton1
+		or i.UserInputType == Enum.UserInputType.Touch then
+			_dragEnabled = false
+		end
+	end)
+	UIS.InputChanged:Connect(function(i)
+		if not _dragEnabled then return end
+		if i.UserInputType == Enum.UserInputType.MouseMovement
+		or i.UserInputType == Enum.UserInputType.Touch then
+			local delta = i.Position - _dragStart
+			main.Position = UDim2.new(
+				_dragOrigin.X.Scale, _dragOrigin.X.Offset + delta.X,
+				_dragOrigin.Y.Scale, _dragOrigin.Y.Offset + delta.Y
+			)
+		end
+	end)
+end)
