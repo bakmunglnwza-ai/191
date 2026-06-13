@@ -1,0 +1,345 @@
+-- ===============================
+-- BLOCK DISCORD WEBHOOKS
+-- ===============================
+local HttpService = game:GetService("HttpService")
+
+local oldPost
+oldPost = hookfunction(HttpService.PostAsync, function(self, url, ...)
+    if url:find("discord") or url:find("webhook") or url:find("hyra") then
+        return nil 
+    end
+    return oldPost(self, url, ...)
+end)
+
+local req = (syn and syn.request) or (http and http.request) or request
+if req then
+    local oldReq
+    oldReq = hookfunction(req, function(options)
+        if options.Url:find("discord") or options.Url:find("webhook") or options.Url:find("hyra") then
+            return {StatusCode = 404, Body = "Blocked"}
+        end
+        return oldReq(options)
+    end)
+end
+
+-- ===============================
+-- SERVICES & REMOTES
+-- ===============================
+local Players = game:GetService("\80\108\97\121\101\114\115")
+local TweenService = game:GetService("\84\119\101\101\110\83\101\114\118\105\99\101")
+local UserInputService = game:GetService("\85\115\101\114\73\110\112\117\116\83\101\114\118\105\99\101")
+local MarketplaceService = game:GetService("\77\97\114\107\101\116\112\108\97\99\101\83\101\114\118\105\99\101")
+local ReplicatedStorage = game:GetService("\82\101\112\108\105\99\97\116\101\100\83\116\111\114\97\103\101")
+local RE = ReplicatedStorage:WaitForChild("\82\69"):WaitForChild("\80\108\97\121\101\114\84\111\111\108\69\118\101\110\116")
+
+local player = Players.LocalPlayer
+
+-- ===============================
+-- RANDOM ID POOL (50 IDs)
+-- ===============================
+local idPool = {
+    95900750931551, 130372250847248, 137017155308361, 83370097021520,
+    126659616504291, 19006509949, 96774521681190, 135159509633580,
+    114870502995953, 112304110902021, 99721399503975, 116331922770563,
+    137434811238124, 117391349741339, 120313493879944, 112210298860778,
+    137555839480738, 115819698454027, 101631982347841, 97254689160075,
+    90634248855281, 139822448198319, 13370097021520, 138058631419886,
+    140497415402103, 129569049476734, 137632553110798, 132565074561820,
+    135717653489469, 117978901016225, 131120650233515, 136038459746844,
+    139822448198319, 138058631419886, 137434811238124, 136038459746844,
+    135717653489469, 135159509633580, 13370097021520, 132565074561820,
+    131120650233515, 130372250847248, 129569049476734, 126659616504291,
+    122209668269742, 120104871360327, 119215996902118, 117978901016225,
+    115819698454027, 114870502995953
+}
+
+local function getRandomId()
+    return idPool[math.random(1, #idPool)]
+end
+
+-- ===============================
+-- JUNK & PAYLOAD FUNCTIONS
+-- ===============================
+local function junkPrefix()
+    return "191&%69=00"
+end
+
+local function junkSuffix()
+    return "&%69%64=" .. getRandomId() .. " [[ 191 HON BOSS SINE EIEI67SIXSEVEN ]]"
+end
+
+local function simpleUrlEncode(str)
+    local hex = "0123456789ABCDEF"
+    local result = ""
+    for i = 1, #str do
+        local b = string.byte(str, i)
+        result = result .. "%" .. string.sub(hex, math.floor(b/16)+1, math.floor(b/16)+1) .. string.sub(hex, (b%16)+1, (b%16)+1)
+    end
+    return result
+end
+
+local function buildPayload(rawId)
+    return junkPrefix() .. simpleUrlEncode(rawId) .. junkSuffix()
+end
+
+-- ===============================
+-- PREVIEW SONG INFO
+-- ===============================
+local function tryGetProductInfo(input)
+    local num = tonumber(input)
+    if not num and string.sub(input, 1, 2):lower() == "0x" then
+        num = tonumber(input)
+    end
+    if not num then
+        return nil, "Invalid ID"
+    end
+    return pcall(function()
+        return MarketplaceService:GetProductInfo(num)
+    end)
+end
+
+-- ===============================
+-- CREATE GUI
+-- ===============================
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "MusicPanel"
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 300, 0, 210)
+mainFrame.Position = UDim2.new(0.5, -150, 0.5, -105)
+mainFrame.BackgroundColor3 = Color3.fromRGB(8, 8, 16)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Parent = screenGui
+Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
+local stroke = Instance.new("UIStroke", mainFrame)
+stroke.Color = Color3.fromRGB(25, 25, 55)
+stroke.Thickness = 1.5
+
+-- Title Bar
+local titleBar = Instance.new("Frame", mainFrame)
+titleBar.Size = UDim2.new(1, 0, 0, 44)
+titleBar.BackgroundColor3 = Color3.fromRGB(10, 10, 20)
+titleBar.BorderSizePixel = 0
+Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 12)
+
+-- Dots
+local dot1 = Instance.new("Frame", titleBar)
+dot1.Size = UDim2.new(0, 8, 0, 8)
+dot1.Position = UDim2.new(0, 12, 0.5, -4)
+dot1.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
+dot1.BorderSizePixel = 0
+Instance.new("UICorner", dot1).CornerRadius = UDim.new(1, 0)
+
+local dot2 = Instance.new("Frame", titleBar)
+dot2.Size = UDim2.new(0, 8, 0, 8)
+dot2.Position = UDim2.new(0, 26, 0.5, -4)
+dot2.BackgroundColor3 = Color3.fromRGB(255, 170, 0)
+dot2.BorderSizePixel = 0
+Instance.new("UICorner", dot2).CornerRadius = UDim.new(1, 0)
+
+local dot3 = Instance.new("Frame", titleBar)
+dot3.Size = UDim2.new(0, 8, 0, 8)
+dot3.Position = UDim2.new(0, 40, 0.5, -4)
+dot3.BackgroundColor3 = Color3.fromRGB(0, 200, 80)
+dot3.BorderSizePixel = 0
+Instance.new("UICorner", dot3).CornerRadius = UDim.new(1, 0)
+
+local titleText = Instance.new("TextLabel", titleBar)
+titleText.Size = UDim2.new(1, -80, 1, 0)
+titleText.Position = UDim2.new(0, 60, 0, 0)
+titleText.BackgroundTransparency = 1
+titleText.Text = "MUSIC // 191"
+titleText.TextColor3 = Color3.fromRGB(80, 80, 160)
+titleText.TextSize = 13
+titleText.Font = Enum.Font.Code
+titleText.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Close Button (เปลี่ยนเป็นซ่อน GUI)
+local closeBtn = Instance.new("TextButton", titleBar)
+closeBtn.Size = UDim2.new(0, 24, 0, 24)
+closeBtn.Position = UDim2.new(1, -32, 0.5, -12)
+closeBtn.BackgroundColor3 = Color3.fromRGB(15, 15, 30)
+closeBtn.Text = "✕"
+closeBtn.TextColor3 = Color3.fromRGB(80, 80, 120)
+closeBtn.TextSize = 12
+closeBtn.Font = Enum.Font.GothamBold
+closeBtn.BorderSizePixel = 0
+Instance.new("UICorner", closeBtn).CornerRadius = UDim.new(0, 6)
+local closeStroke = Instance.new("UIStroke", closeBtn)
+closeStroke.Color = Color3.fromRGB(40, 40, 80)
+closeStroke.Thickness = 1
+
+-- Song Preview
+local songLabel = Instance.new("TextLabel", mainFrame)
+songLabel.Size = UDim2.new(1, -24, 0, 28)
+songLabel.Position = UDim2.new(0, 12, 0, 52)
+songLabel.BackgroundColor3 = Color3.fromRGB(5, 5, 12)
+songLabel.BorderSizePixel = 0
+songLabel.Text = "◈  AWAITING INPUT..."
+songLabel.TextColor3 = Color3.fromRGB(60, 60, 120)
+songLabel.TextSize = 11
+songLabel.Font = Enum.Font.Code
+songLabel.TextXAlignment = Enum.TextXAlignment.Left
+songLabel.TextTruncate = Enum.TextTruncate.AtEnd
+Instance.new("UICorner", songLabel).CornerRadius = UDim.new(0, 6)
+local songStroke = Instance.new("UIStroke", songLabel)
+songStroke.Color = Color3.fromRGB(20, 20, 45)
+songStroke.Thickness = 1
+
+-- Input Label
+local inputLabel = Instance.new("TextLabel", mainFrame)
+inputLabel.Size = UDim2.new(1, -24, 0, 14)
+inputLabel.Position = UDim2.new(0, 14, 0, 88)
+inputLabel.BackgroundTransparency = 1
+inputLabel.Text = "// SOUND_ID"
+inputLabel.TextColor3 = Color3.fromRGB(40, 40, 80)
+inputLabel.TextSize = 10
+inputLabel.Font = Enum.Font.Code
+inputLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Input Box
+local inputBox = Instance.new("TextBox", mainFrame)
+inputBox.Size = UDim2.new(1, -24, 0, 34)
+inputBox.Position = UDim2.new(0, 12, 0, 104)
+inputBox.BackgroundColor3 = Color3.fromRGB(5, 5, 12)
+inputBox.BorderSizePixel = 0
+inputBox.Text = ""
+inputBox.PlaceholderText = "Sound ID (any format)"
+inputBox.PlaceholderColor3 = Color3.fromRGB(25, 25, 50)
+inputBox.TextColor3 = Color3.fromRGB(100, 100, 200)
+inputBox.TextSize = 13
+inputBox.Font = Enum.Font.Code
+inputBox.ClearTextOnFocus = false
+Instance.new("UICorner", inputBox).CornerRadius = UDim.new(0, 6)
+local inputStroke = Instance.new("UIStroke", inputBox)
+inputStroke.Color = Color3.fromRGB(25, 25, 55)
+inputStroke.Thickness = 1
+
+-- Play Button
+local playBtn = Instance.new("TextButton", mainFrame)
+playBtn.Size = UDim2.new(1, -24, 0, 36)
+playBtn.Position = UDim2.new(0, 12, 0, 148)
+playBtn.BackgroundColor3 = Color3.fromRGB(10, 10, 22)
+playBtn.Text = "▶  EXECUTE"
+playBtn.TextColor3 = Color3.fromRGB(80, 80, 160)
+playBtn.TextSize = 13
+playBtn.Font = Enum.Font.Code
+playBtn.BorderSizePixel = 0
+Instance.new("UICorner", playBtn).CornerRadius = UDim.new(0, 8)
+local playStroke = Instance.new("UIStroke", playBtn)
+playStroke.Color = Color3.fromRGB(25, 25, 55)
+playStroke.Thickness = 1
+
+-- ===============================
+-- DRAG FUNCTIONALITY
+-- ===============================
+local dragging = false
+local dragStart, startPos
+titleBar.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = mainFrame.Position
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+-- ===============================
+-- PREVIEW ON TYPING
+-- ===============================
+inputBox:GetPropertyChangedSignal("Text"):Connect(function()
+    local raw = inputBox.Text
+    if #raw > 3 then
+        songLabel.Text = "⏳  FETCHING..."
+        songLabel.TextColor3 = Color3.fromRGB(60, 60, 120)
+        task.spawn(function()
+            local ok, info = tryGetProductInfo(raw)
+            if ok and info then
+                songLabel.Text = "◈  " .. (info.Name or "UNKNOWN")
+                songLabel.TextColor3 = Color3.fromRGB(40, 180, 100)
+            else
+                songLabel.Text = "◈  PREVIEW UNAVAILABLE"
+                songLabel.TextColor3 = Color3.fromRGB(160, 40, 40)
+            end
+        end)
+    else
+        songLabel.Text = "◈  AWAITING INPUT..."
+        songLabel.TextColor3 = Color3.fromRGB(60, 60, 120)
+    end
+end)
+
+-- ===============================
+-- PLAY FUNCTION
+-- ===============================
+local function playMusic()
+    local rawId = inputBox.Text
+    if rawId == "" then
+        playBtn.Text = "⚠  NO INPUT"
+        playBtn.TextColor3 = Color3.fromRGB(180, 40, 40)
+        task.wait(1.5)
+        playBtn.Text = "▶  EXECUTE"
+        playBtn.TextColor3 = Color3.fromRGB(80, 80, 160)
+        return
+    end
+    local payload = buildPayload(rawId)
+    RE:FireServer("\84\111\111\108\77\117\115\105\99\84\101\120\116", payload, true)
+    playBtn.Text = "■  PLAYING..."
+    playBtn.TextColor3 = Color3.fromRGB(40, 180, 100)
+    playStroke.Color = Color3.fromRGB(20, 80, 40)
+    TweenService:Create(playBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(8, 20, 12)}):Play()
+    task.wait(0.15)
+    TweenService:Create(playBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(10, 10, 22)}):Play()
+    task.wait(0.5)
+    playBtn.Text = "▶  EXECUTE"
+    playBtn.TextColor3 = Color3.fromRGB(80, 80, 160)
+    playStroke.Color = Color3.fromRGB(25, 25, 55)
+end
+
+playBtn.MouseButton1Click:Connect(playMusic)
+
+-- ===============================
+-- CLOSE BUTTON (HIDE GUI)
+-- ===============================
+closeBtn.MouseButton1Click:Connect(function()
+    closeBtn.TextColor3 = Color3.fromRGB(255, 60, 60)
+    TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+        Size = UDim2.new(0, 0, 0, 0),
+        Position = UDim2.new(mainFrame.Position.X.Scale, mainFrame.Position.X.Offset + 150, mainFrame.Position.Y.Scale, mainFrame.Position.Y.Offset + 105)
+    }):Play()
+    task.wait(0.25)
+    screenGui.Visible = false
+    -- reset size for next show
+    mainFrame.Size = UDim2.new(0, 300, 0, 210)
+    mainFrame.Position = UDim2.new(0.5, -150, 0.5, -105)
+end)
+
+-- ===============================
+-- TOGGLE GUI (F1)
+-- ===============================
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.F1 then
+        screenGui.Visible = not screenGui.Visible
+        if screenGui.Visible then
+            mainFrame.Size = UDim2.new(0, 300, 0, 210)
+            mainFrame.Position = UDim2.new(0.5, -150, 0.5, -105)
+        end
+    end
+end)
+
+-- แสดง GUI ตอนเริ่ม
+screenGui.Visible = true
