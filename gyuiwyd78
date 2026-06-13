@@ -277,8 +277,8 @@ local function botBtn(icon, x)
 	b.MouseLeave:Connect(function() b.TextColor3=C.TEXT_GH end)
 	return b
 end
-local prevBtn = botBtn("⏮", 8)
-local nextBtn = botBtn("⏭", 40)
+local prevBtn = botBtn("", 8)
+local nextBtn = botBtn("", 40)
 new("TextLabel",{
 	Size=UDim2.new(0,220,1,0), Position=UDim2.new(1,-224,0,0),
 	BackgroundTransparency=1, Text="AUDIO PLAYER v2.4",
@@ -317,8 +317,8 @@ TweenService:Create(logo:FindFirstChildOfClass("UIStroke"),
 	TweenInfo.new(1.5,Enum.EasingStyle.Sine,Enum.EasingDirection.InOut,-1,true),
 	{Color=C.PUR_LT}):Play()
 
-credLabel("AUDIO PLAYER",       100, 20, C.TEXT,    true)
-credLabel("ROBLOX LOCAL SCRIPT", 126, 10, C.TEXT_DK, false)
+credLabel("191",       100, 20, C.TEXT,    true)
+credLabel("191", 126, 10, C.TEXT_DK, false)
 
 new("Frame",{
 	Size=UDim2.fromOffset(70,1),
@@ -327,10 +327,10 @@ new("Frame",{
 }, credPage)
 
 local CROWS = {
-	{"DEVELOPER","YOU"},
-	{"VERSION","v2.4.0"},
-	{"ENGINE","ROBLOX"},
-	{"UI STYLE","DARK / PURPLE"},
+	{"คนทำ","191"},
+	{"เวอร์ชั่น","v1.0"},
+	{"สถานะ","โสด"},
+	{"เด้กเทพช่า","เด้กเทพช่า"},
 }
 for i, row in ipairs(CROWS) do
 	local ry = 158 + (i-1)*38
@@ -369,7 +369,7 @@ pad(14,14,12,10, playPage)
 
 new("TextLabel",{
 	Size=UDim2.new(1,0,0,14),
-	BackgroundTransparency=1, Text="WAVEFORM",
+	BackgroundTransparency=1, Text="",
 	TextColor3=C.TEXT_GH, TextSize=9, Font=Enum.Font.Code,
 	TextXAlignment=Enum.TextXAlignment.Left,
 }, playPage)
@@ -430,7 +430,7 @@ pad(12,12,10,10,idBox)
 
 new("TextLabel",{
 	Size=UDim2.new(1,0,0,12),
-	BackgroundTransparency=1, Text="ASSET ID",
+	BackgroundTransparency=1, Text="",
 	TextColor3=C.TEXT_GH, TextSize=9, Font=Enum.Font.Code,
 	TextXAlignment=Enum.TextXAlignment.Left,
 }, idBox)
@@ -565,7 +565,7 @@ local function startPlay()
 	if not sound then return end
 	hasFiredStop = false
 	isPlaying = true
-	playBtn.Text = "⏸"
+	playBtn.Text = "II "
 	playBtn.BackgroundColor3 = C.RED
 	playBtn:FindFirstChildOfClass("UIStroke").Color = Color3.fromHex("F87171")
 	statusLbl.Text = "PLAYING"
