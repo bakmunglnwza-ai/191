@@ -158,7 +158,7 @@ titleText.TextSize = 13
 titleText.Font = Enum.Font.Code
 titleText.TextXAlignment = Enum.TextXAlignment.Left
 
--- Close Button (เปลี่ยนเป็นซ่อน GUI)
+-- Close Button
 local closeBtn = Instance.new("TextButton", titleBar)
 closeBtn.Size = UDim2.new(0, 24, 0, 24)
 closeBtn.Position = UDim2.new(1, -32, 0.5, -12)
@@ -235,7 +235,7 @@ playStroke.Color = Color3.fromRGB(25, 25, 55)
 playStroke.Thickness = 1
 
 -- ===============================
--- DRAG FUNCTIONALITY
+-- DRAG GUI
 -- ===============================
 local dragging = false
 local dragStart, startPos
@@ -315,31 +315,58 @@ playBtn.MouseButton1Click:Connect(playMusic)
 -- CLOSE BUTTON (HIDE GUI)
 -- ===============================
 closeBtn.MouseButton1Click:Connect(function()
-    closeBtn.TextColor3 = Color3.fromRGB(255, 60, 60)
-    TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
-        Size = UDim2.new(0, 0, 0, 0),
-        Position = UDim2.new(mainFrame.Position.X.Scale, mainFrame.Position.X.Offset + 150, mainFrame.Position.Y.Scale, mainFrame.Position.Y.Offset + 105)
-    }):Play()
-    task.wait(0.25)
     screenGui.Visible = false
-    -- reset size for next show
-    mainFrame.Size = UDim2.new(0, 300, 0, 210)
-    mainFrame.Position = UDim2.new(0.5, -150, 0.5, -105)
 end)
 
 -- ===============================
--- TOGGLE GUI (F1)
+-- FLOATING TOGGLE BUTTON
 -- ===============================
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.F1 then
-        screenGui.Visible = not screenGui.Visible
-        if screenGui.Visible then
-            mainFrame.Size = UDim2.new(0, 300, 0, 210)
-            mainFrame.Position = UDim2.new(0.5, -150, 0.5, -105)
-        end
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 55, 0, 55)
+toggleBtn.Position = UDim2.new(0, 15, 0, 200)
+toggleBtn.Text = "🎵"
+toggleBtn.TextSize = 28
+toggleBtn.BackgroundColor3 = Color3.fromRGB(25, 25, 50)
+toggleBtn.TextColor3 = Color3.fromRGB(200, 200, 255)
+toggleBtn.BorderSizePixel = 0
+toggleBtn.Parent = screenGui
+
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(1, 0)
+local btnStroke = Instance.new("UIStroke", toggleBtn)
+btnStroke.Color = Color3.fromRGB(80, 80, 160)
+btnStroke.Thickness = 1.5
+
+-- Drag floating button
+local isDraggingBtn = false
+local btnDragStart, btnStartPos
+
+toggleBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        isDraggingBtn = true
+        btnDragStart = input.Position
+        btnStartPos = toggleBtn.Position
     end
 end)
 
--- แสดง GUI ตอนเริ่ม
+UserInputService.InputChanged:Connect(function(input)
+    if isDraggingBtn and input.UserInputType == Enum.UserInputType.MouseMovement then
+        local delta = input.Position - btnDragStart
+        toggleBtn.Position = UDim2.new(btnStartPos.X.Scale, btnStartPos.X.Offset + delta.X, btnStartPos.Y.Scale, btnStartPos.Y.Offset + delta.Y)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        isDraggingBtn = false
+    end
+end)
+
+-- Toggle GUI
+toggleBtn.MouseButton1Click:Connect(function()
+    screenGui.Visible = not screenGui.Visible
+end)
+
+-- ===============================
+-- SHOW GUI
+-- ===============================
 screenGui.Visible = true
