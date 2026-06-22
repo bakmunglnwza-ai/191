@@ -1,6 +1,6 @@
 local Players = game:GetService("\80\108\97\121\101\114\115")
 local TweenService = game:GetService("\84\119\101\101\110\83\101\114\118\105\99\101")
-local UserInputService = game:GetService("\85\115\101\114\73\110\112\117\116\83\101\114\118\105\99\101")
+local UserInputService = game:GetService("\85\115\101\114\73\110\112\117\116\83\101\114\118\105\99\101") -- ใช้สำหรับ drag
 local MarketplaceService = game:GetService("\77\97\114\107\101\116\112\108\97\99\101\83\101\114\118\105\99\101")
 local ReplicatedStorage = game:GetService("\82\101\112\108\105\99\97\116\101\100\83\116\111\114\97\103\101")
 local RE = ReplicatedStorage:WaitForChild("\82\69"):WaitForChild("\80\108\97\121\101\114\84\111\111\108\69\118\101\110\116")
@@ -37,12 +37,7 @@ end
 -- ===============================
 local function tryGetProductInfo(input)
     local num = tonumber(input)
-    if not num and string.sub(input, 1, 2):lower() == "0x" then
-        num = tonumber(input)
-    end
-    if not num then
-        return nil, "Invalid ID"
-    end
+    if not num then return nil, "Invalid ID" end
     return pcall(function()
         return MarketplaceService:GetProductInfo(num)
     end)
@@ -57,12 +52,41 @@ screenGui.ResetOnSpawn = false
 screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
+-- ===============================
+-- TOGGLE BUTTON (มุมขวาบน)
+-- ตอนเริ่ม: เห็นแค่ปุ่มนี้
+-- ===============================
+local TOGGLE_POS = UDim2.new(0.5, -40, 0.5, -40)  -- กลางจอ (80/2)
+
+local toggleBtn = Instance.new("ImageButton")
+toggleBtn.Size = UDim2.new(0, 80, 0, 80)
+toggleBtn.Position = TOGGLE_POS
+toggleBtn.BackgroundTransparency = 1
+toggleBtn.BorderSizePixel = 0
+toggleBtn.Image = "rbxassetid://7488932274"
+toggleBtn.ImageColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.Visible = true   -- เริ่มต้น: เห็นปุ่ม
+toggleBtn.Parent = screenGui
+Instance.new("UICorner", toggleBtn).CornerRadius = UDim.new(0, 10)
+local toggleStroke = Instance.new("UIStroke", toggleBtn)
+toggleStroke.Color = Color3.fromRGB(40, 40, 90)
+toggleStroke.Thickness = 1.5
+
+-- ===============================
+-- MAIN FRAME
+-- เริ่มต้น: ซ่อนอยู่
+-- ===============================
+local FRAME_W, FRAME_H = 300, 210
+local CENTER_POS = UDim2.new(0.5, -FRAME_W/2, 0.5, -FRAME_H/2)
+
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 300, 0, 210)
-mainFrame.Position = UDim2.new(0.5, -150, 0.5, -105)
+mainFrame.Size = UDim2.new(0, FRAME_W, 0, FRAME_H)
+mainFrame.Position = CENTER_POS
 mainFrame.BackgroundColor3 = Color3.fromRGB(8, 8, 16)
 mainFrame.BorderSizePixel = 0
 mainFrame.Active = true
+mainFrame.ClipsDescendants = true
+mainFrame.Visible = false  -- เริ่มต้น: ซ่อน
 mainFrame.Parent = screenGui
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0, 12)
 local stroke = Instance.new("UIStroke", mainFrame)
@@ -77,26 +101,15 @@ titleBar.BorderSizePixel = 0
 Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0, 12)
 
 -- Dots
-local dot1 = Instance.new("Frame", titleBar)
-dot1.Size = UDim2.new(0, 8, 0, 8)
-dot1.Position = UDim2.new(0, 12, 0.5, -4)
-dot1.BackgroundColor3 = Color3.fromRGB(255, 60, 60)
-dot1.BorderSizePixel = 0
-Instance.new("UICorner", dot1).CornerRadius = UDim.new(1, 0)
-
-local dot2 = Instance.new("Frame", titleBar)
-dot2.Size = UDim2.new(0, 8, 0, 8)
-dot2.Position = UDim2.new(0, 26, 0.5, -4)
-dot2.BackgroundColor3 = Color3.fromRGB(255, 170, 0)
-dot2.BorderSizePixel = 0
-Instance.new("UICorner", dot2).CornerRadius = UDim.new(1, 0)
-
-local dot3 = Instance.new("Frame", titleBar)
-dot3.Size = UDim2.new(0, 8, 0, 8)
-dot3.Position = UDim2.new(0, 40, 0.5, -4)
-dot3.BackgroundColor3 = Color3.fromRGB(0, 200, 80)
-dot3.BorderSizePixel = 0
-Instance.new("UICorner", dot3).CornerRadius = UDim.new(1, 0)
+local dotColors = {Color3.fromRGB(255,60,60), Color3.fromRGB(255,170,0), Color3.fromRGB(0,200,80)}
+for i, col in ipairs(dotColors) do
+    local d = Instance.new("Frame", titleBar)
+    d.Size = UDim2.new(0, 8, 0, 8)
+    d.Position = UDim2.new(0, 12 + (i-1)*14, 0.5, -4)
+    d.BackgroundColor3 = col
+    d.BorderSizePixel = 0
+    Instance.new("UICorner", d).CornerRadius = UDim.new(1, 0)
+end
 
 local titleText = Instance.new("TextLabel", titleBar)
 titleText.Size = UDim2.new(1, -80, 1, 0)
@@ -108,7 +121,7 @@ titleText.TextSize = 13
 titleText.Font = Enum.Font.Code
 titleText.TextXAlignment = Enum.TextXAlignment.Left
 
--- Close Button (เปลี่ยนเป็นซ่อน GUI)
+-- Close Button (ขวาบนของ UI)
 local closeBtn = Instance.new("TextButton", titleBar)
 closeBtn.Size = UDim2.new(0, 24, 0, 24)
 closeBtn.Position = UDim2.new(1, -32, 0.5, -12)
@@ -136,9 +149,7 @@ songLabel.Font = Enum.Font.Code
 songLabel.TextXAlignment = Enum.TextXAlignment.Left
 songLabel.TextTruncate = Enum.TextTruncate.AtEnd
 Instance.new("UICorner", songLabel).CornerRadius = UDim.new(0, 6)
-local songStroke = Instance.new("UIStroke", songLabel)
-songStroke.Color = Color3.fromRGB(20, 20, 45)
-songStroke.Thickness = 1
+Instance.new("UIStroke", songLabel).Color = Color3.fromRGB(20, 20, 45)
 
 -- Input Label
 local inputLabel = Instance.new("TextLabel", mainFrame)
@@ -165,9 +176,7 @@ inputBox.TextSize = 13
 inputBox.Font = Enum.Font.Code
 inputBox.ClearTextOnFocus = false
 Instance.new("UICorner", inputBox).CornerRadius = UDim.new(0, 6)
-local inputStroke = Instance.new("UIStroke", inputBox)
-inputStroke.Color = Color3.fromRGB(25, 25, 55)
-inputStroke.Thickness = 1
+Instance.new("UIStroke", inputBox).Color = Color3.fromRGB(25, 25, 55)
 
 -- Play Button
 local playBtn = Instance.new("TextButton", mainFrame)
@@ -183,6 +192,83 @@ Instance.new("UICorner", playBtn).CornerRadius = UDim.new(0, 8)
 local playStroke = Instance.new("UIStroke", playBtn)
 playStroke.Color = Color3.fromRGB(25, 25, 55)
 playStroke.Thickness = 1
+
+-- ===============================
+-- UI SOUNDS
+-- ===============================
+local sfxOpen = Instance.new("Sound")
+sfxOpen.SoundId = "rbxassetid://70452176150315"  -- whoosh/open
+sfxOpen.Volume = 0.5
+sfxOpen.Parent = screenGui
+
+local sfxClose = Instance.new("Sound")
+sfxClose.SoundId = "rbxassetid://115916891254154"  -- whoosh/close
+sfxClose.Volume = 0.5
+sfxClose.Parent = screenGui
+
+local sfxPlay = Instance.new("Sound")
+sfxPlay.SoundId = "rbxassetid://542332175"  -- กดเล่นเพลง
+sfxPlay.Volume = 0.5
+sfxPlay.Parent = screenGui
+
+-- ===============================
+-- OPEN / CLOSE ANIMATIONS
+-- ===============================
+local isAnimating = false
+
+local function openUI()
+    if isAnimating then return end
+    isAnimating = true
+
+    -- ซ่อนปุ่ม toggle ก่อน
+    toggleBtn.Visible = false
+    sfxOpen:Play()
+
+    -- เตรียม frame ก่อน animate
+    mainFrame.Size = UDim2.new(0, 0, 0, 0)
+    mainFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+    mainFrame.Visible = true
+
+    TweenService:Create(mainFrame, TweenInfo.new(0.28, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, FRAME_W, 0, FRAME_H),
+        Position = CENTER_POS,
+    }):Play()
+    task.wait(0.28)
+
+    -- pulse ขอบม่วง
+    TweenService:Create(stroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(80, 60, 180)}):Play()
+    task.wait(0.2)
+    TweenService:Create(stroke, TweenInfo.new(0.3), {Color = Color3.fromRGB(25, 25, 55)}):Play()
+
+    isAnimating = false
+end
+
+local function closeUI()
+    if isAnimating then return end
+    isAnimating = true
+
+    sfxClose:Play()
+    -- animate ปิด UI
+    TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
+        Size = UDim2.new(0, 0, 0, 0),
+        Position = UDim2.new(0.5, 0, 0.5, 0),
+    }):Play()
+    task.wait(0.22)
+    mainFrame.Visible = false
+
+    -- reset size สำหรับครั้งถัดไป
+    mainFrame.Size = UDim2.new(0, FRAME_W, 0, FRAME_H)
+    mainFrame.Position = CENTER_POS
+
+    -- animate ปุ่ม toggle กลับมา (fade in เล็กน้อย)
+    toggleBtn.Size = UDim2.new(0, 30, 0, 30)
+    toggleBtn.Visible = true
+    TweenService:Create(toggleBtn, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
+        Size = UDim2.new(0, 80, 0, 80),
+    }):Play()
+
+    isAnimating = false
+end
 
 -- ===============================
 -- DRAG FUNCTIONALITY
@@ -246,6 +332,7 @@ local function playMusic()
         return
     end
     local payload = buildPayload(rawId)
+    sfxPlay:Play()
     RE:FireServer("\84\111\111\108\77\117\115\105\99\84\101\120\116", payload, true)
     playBtn.Text = "■  PLAYING..."
     playBtn.TextColor3 = Color3.fromRGB(40, 180, 100)
@@ -262,34 +349,78 @@ end
 playBtn.MouseButton1Click:Connect(playMusic)
 
 -- ===============================
--- CLOSE BUTTON (HIDE GUI)
+-- CLOSE BUTTON → ปิด UI, toggle กลับมา
 -- ===============================
 closeBtn.MouseButton1Click:Connect(function()
     closeBtn.TextColor3 = Color3.fromRGB(255, 60, 60)
-    TweenService:Create(mainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), {
-        Size = UDim2.new(0, 0, 0, 0),
-        Position = UDim2.new(mainFrame.Position.X.Scale, mainFrame.Position.X.Offset + 150, mainFrame.Position.Y.Scale, mainFrame.Position.Y.Offset + 105)
-    }):Play()
-    task.wait(0.25)
-    screenGui.Visible = false
-    -- reset size for next show
-    mainFrame.Size = UDim2.new(0, 300, 0, 210)
-    mainFrame.Position = UDim2.new(0.5, -150, 0.5, -105)
+    task.wait(0.06)
+    closeBtn.TextColor3 = Color3.fromRGB(80, 80, 120)
+    closeUI()
 end)
 
 -- ===============================
--- TOGGLE GUI (F1)
+-- TOGGLE BUTTON → เปิด UI, ตัวเองหาย
 -- ===============================
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.F1 then
-        screenGui.Visible = not screenGui.Visible
-        if screenGui.Visible then
-            mainFrame.Size = UDim2.new(0, 300, 0, 210)
-            mainFrame.Position = UDim2.new(0.5, -150, 0.5, -105)
+
+-- ===============================
+-- DRAG TOGGLE BUTTON
+-- แยก drag/click: ถ้าขยับเกิน 6px ถือว่า drag ไม่ใช่ click
+-- ===============================
+local draggingToggle = false
+local toggleDragStart, toggleStartPos
+local toggleDidDrag = false
+
+toggleBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        draggingToggle = true
+        toggleDidDrag = false
+        toggleDragStart = input.Position
+        toggleStartPos = toggleBtn.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if draggingToggle and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - toggleDragStart
+        if math.abs(delta.X) > 6 or math.abs(delta.Y) > 6 then
+            toggleDidDrag = true
+        end
+        if toggleDidDrag then
+            toggleBtn.Position = UDim2.new(
+                toggleStartPos.X.Scale, toggleStartPos.X.Offset + delta.X,
+                toggleStartPos.Y.Scale, toggleStartPos.Y.Offset + delta.Y
+            )
         end
     end
 end)
 
--- แสดง GUI ตอนเริ่ม
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        draggingToggle = false
+    end
+end)
+
+toggleBtn.MouseEnter:Connect(function()
+    TweenService:Create(toggleBtn, TweenInfo.new(0.15), {
+        BackgroundColor3 = Color3.fromRGB(20, 15, 45),
+        ImageColor3 = Color3.fromRGB(130, 100, 255),
+    }):Play()
+    TweenService:Create(toggleStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(80, 60, 180)}):Play()
+end)
+toggleBtn.MouseLeave:Connect(function()
+    TweenService:Create(toggleBtn, TweenInfo.new(0.15), {
+        BackgroundColor3 = Color3.fromRGB(10, 10, 22),
+        ImageColor3 = Color3.fromRGB(80, 80, 160),
+    }):Play()
+    TweenService:Create(toggleStroke, TweenInfo.new(0.15), {Color = Color3.fromRGB(40, 40, 90)}):Play()
+end)
+toggleBtn.MouseButton1Click:Connect(function()
+    if toggleDidDrag then return end  -- ถ้าลากอยู่ไม่ต้องเปิด
+    -- bounce กด
+    TweenService:Create(toggleBtn, TweenInfo.new(0.08), {Size = UDim2.new(0, 68, 0, 68)}):Play()
+    task.wait(0.08)
+    openUI()
+end)
+
+-- เริ่มต้น: เห็นแค่ปุ่ม toggle
 screenGui.Visible = true
