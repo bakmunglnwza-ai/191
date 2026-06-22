@@ -59,7 +59,7 @@ screenGui.Parent = player:WaitForChild("PlayerGui")
 local TOGGLE_POS = UDim2.new(0.5, -40, 0.5, -40)  -- กลางจอ (80/2)
 
 local toggleBtn = Instance.new("ImageButton")
-toggleBtn.Size = UDim2.new(0, 80, 0, 80)
+toggleBtn.Size = UDim2.new(0, 50, 0, 50)
 toggleBtn.Position = TOGGLE_POS
 toggleBtn.BackgroundTransparency = 1
 toggleBtn.BorderSizePixel = 0
