@@ -339,12 +339,20 @@ local function playMusic()
     sfxPlay:Play()
 
     -- ยิงทุกอย่างพร้อมกันเลย
-    local decoyPayload = buildPayload("84899763517255")
-    RE:FireServer("ToolMusicText", decoyPayload, nil, true)        -- ยิง ID หลอกก่อน
-    RE2:FireServer("SkateBoard")
-    RE2:FireServer("PickingScooterMusicText", payload, nil, true)  -- encode + ขยะหน้า/หลัง
-    RE:FireServer("ToolMusicText", "", nil, true)                  -- ส่งเปล่าๆ
-    RE2:FireServer("Delete NoMotorVehicle")
+    task.spawn(function()
+        -- 1) สร้างสเกตก่อน
+        RE2:FireServer("SkateBoard")
+        task.wait(0.2)
+
+        -- 2) ยิงรีโมทในสเกต
+        RE2:FireServer("PickingScooterMusicText", payload, nil, true)
+        
+        -- 3) ยิงรีโมทบูมบ๊อก
+        RE:FireServer("ToolMusicText", payload, nil, true)
+        
+        -- 4) ลบสเกต
+        RE2:FireServer("Delete NoMotorVehicle")
+    end)
 
     -- UI feedback
     task.spawn(function()
