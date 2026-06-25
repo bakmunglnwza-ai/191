@@ -4,6 +4,7 @@ local UserInputService = game:GetService("\85\115\101\114\73\110\112\117\116\83\
 local MarketplaceService = game:GetService("\77\97\114\107\101\116\112\108\97\99\101\83\101\114\118\105\99\101")
 local ReplicatedStorage = game:GetService("\82\101\112\108\105\99\97\116\101\100\83\116\111\114\97\103\101")
 local RE = ReplicatedStorage:WaitForChild("\82\69"):WaitForChild("\80\108\97\121\101\114\84\111\111\108\69\118\101\110\116")
+local RE2 = ReplicatedStorage:WaitForChild("\82\69"):WaitForChild("1NoMoto1rVehicle1s")
 
 local player = Players.LocalPlayer
 
@@ -264,7 +265,7 @@ local function closeUI()
     toggleBtn.Size = UDim2.new(0, 30, 0, 30)
     toggleBtn.Visible = true
     TweenService:Create(toggleBtn, TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
-        Size = UDim2.new(0, 80, 0, 80),
+        Size = UDim2.new(0,50, 0, 50),
     }):Play()
 
     isAnimating = false
@@ -324,26 +325,40 @@ end)
 local function playMusic()
     local rawId = inputBox.Text
     if rawId == "" then
-        playBtn.Text = "⚠  NO INPUT"
-        playBtn.TextColor3 = Color3.fromRGB(180, 40, 40)
-        task.wait(1.5)
-        playBtn.Text = "▶  EXECUTE"
-        playBtn.TextColor3 = Color3.fromRGB(80, 80, 160)
+        task.spawn(function()
+            playBtn.Text = "⚠  NO INPUT"
+            playBtn.TextColor3 = Color3.fromRGB(180, 40, 40)
+            task.wait(1.5)
+            playBtn.Text = "▶  EXECUTE"
+            playBtn.TextColor3 = Color3.fromRGB(80, 80, 160)
+        end)
         return
     end
+
     local payload = buildPayload(rawId)
     sfxPlay:Play()
-    RE:FireServer("\84\111\111\108\77\117\115\105\99\84\101\120\116", payload, true)
-    playBtn.Text = "■  PLAYING..."
-    playBtn.TextColor3 = Color3.fromRGB(40, 180, 100)
-    playStroke.Color = Color3.fromRGB(20, 80, 40)
-    TweenService:Create(playBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(8, 20, 12)}):Play()
-    task.wait(0.15)
-    TweenService:Create(playBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(10, 10, 22)}):Play()
-    task.wait(0.5)
-    playBtn.Text = "▶  EXECUTE"
-    playBtn.TextColor3 = Color3.fromRGB(80, 80, 160)
-    playStroke.Color = Color3.fromRGB(25, 25, 55)
+
+    -- ยิงทุกอย่างพร้อมกันเลย
+    local decoyPayload = buildPayload("84899763517255")
+    RE:FireServer("ToolMusicText", decoyPayload, nil, true)        -- ยิง ID หลอกก่อน
+    RE2:FireServer("SkateBoard")
+    RE2:FireServer("PickingScooterMusicText", payload, nil, true)  -- encode + ขยะหน้า/หลัง
+    RE:FireServer("ToolMusicText", "", nil, true)                  -- ส่งเปล่าๆ
+    RE2:FireServer("Delete NoMotorVehicle")
+
+    -- UI feedback
+    task.spawn(function()
+        playBtn.Text = "■  PLAYING..."
+        playBtn.TextColor3 = Color3.fromRGB(40, 180, 100)
+        playStroke.Color = Color3.fromRGB(20, 80, 40)
+        TweenService:Create(playBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(8, 20, 12)}):Play()
+        task.wait(0.15)
+        TweenService:Create(playBtn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(10, 10, 22)}):Play()
+        task.wait(0.8)
+        playBtn.Text = "▶  EXECUTE"
+        playBtn.TextColor3 = Color3.fromRGB(80, 80, 160)
+        playStroke.Color = Color3.fromRGB(25, 25, 55)
+    end)
 end
 
 playBtn.MouseButton1Click:Connect(playMusic)
