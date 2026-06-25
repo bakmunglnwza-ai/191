@@ -340,17 +340,13 @@ local function playMusic()
 
     -- ยิงทุกอย่างพร้อมกันเลย
     task.spawn(function()
-        -- 1) สร้างสเกตก่อน
-        RE2:FireServer("SkateBoard")
-        task.wait(0.2)
+        local decoyPayload = "84899763517255"
 
-        -- 2) ยิงรีโมทในสเกต
-        RE2:FireServer("PickingScooterMusicText", payload, nil, true)
-        
-        -- 3) ยิงรีโมทบูมบ๊อก
+        RE:FireServer("ToolMusicText", decoyPayload, nil, true)
+
         RE:FireServer("ToolMusicText", payload, nil, true)
-        
-        -- 4) ลบสเกต
+
+        -- 5) ลบสเกต
         RE2:FireServer("Delete NoMotorVehicle")
     end)
 
